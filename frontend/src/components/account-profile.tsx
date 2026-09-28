@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Settings, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { updateAccountProfile, uploadAccountAvatar } from "@/lib/api";
+import { changeAccountPassword, updateAccountProfile, uploadAccountAvatar } from "@/lib/api";
 import { useAccountAuth } from "@/lib/account-auth";
 
 export function AccountProfile() {
@@ -16,6 +16,12 @@ export function AccountProfile() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -24,6 +30,11 @@ export function AccountProfile() {
     setAvatarFile(null);
     setError("");
     setMessage("");
+    setOldPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordError("");
+    setPasswordMessage("");
     if (fileRef.current) fileRef.current.value = "";
   }, [open, user]);
 
@@ -72,6 +83,31 @@ export function AccountProfile() {
   const trimmedDisplayId = displayId.trim();
   const isNumericDisplayId = /^\d+$/.test(trimmedDisplayId);
   const previewName = user.bilibili_name || user.username;
+
+  const submitPasswordChange = async () => {
+    if (newPassword !== confirmPassword) {
+      setPasswordError("两次输入的新密码不一致");
+      return;
+    }
+    setPasswordBusy(true);
+    setPasswordError("");
+    setPasswordMessage("");
+    try {
+      const response = await changeAccountPassword(oldPassword, newPassword);
+      if (response.code === 200) {
+        setPasswordMessage("密码已更新");
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        setPasswordError(response.message || "修改失败");
+      }
+    } catch {
+      setPasswordError("修改失败，请稍后重试");
+    } finally {
+      setPasswordBusy(false);
+    }
+  };
 
   return (
     <>
@@ -185,6 +221,41 @@ export function AccountProfile() {
               </div>
 
               <div className="text-sm text-muted-foreground">登录名：{user.username}</div>
+
+              <div className="space-y-3 border-t border-dashed border-[var(--fabric-stitch)] pt-4">
+                <p className="text-sm">修改密码</p>
+                <Input
+                  type="password"
+                  value={oldPassword}
+                  onChange={(event) => setOldPassword(event.target.value)}
+                  autoComplete="current-password"
+                  placeholder="当前密码"
+                />
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  autoComplete="new-password"
+                  placeholder="新密码（8 至 72 个字符）"
+                />
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  autoComplete="new-password"
+                  placeholder="确认新密码"
+                />
+                {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
+                {passwordMessage && <p className="text-sm text-green-700">{passwordMessage}</p>}
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={submitPasswordChange}
+                  disabled={passwordBusy || !oldPassword || !newPassword || !confirmPassword}
+                >
+                  {passwordBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "修改密码"}
+                </Button>
+              </div>
 
               {error && <p className="text-sm text-destructive">{error}</p>}
               {message && <p className="text-sm text-green-700">{message}</p>}

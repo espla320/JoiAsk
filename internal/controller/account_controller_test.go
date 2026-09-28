@@ -58,6 +58,7 @@ func newAccountRouter() *gin.Engine {
 	router.POST("/login", controller.Login)
 	router.GET("/info", controller.Info)
 	router.PUT("/profile", controller.UpdateProfile)
+	router.PUT("/password", controller.ChangePassword)
 	return router
 }
 
@@ -163,6 +164,43 @@ func TestAccountRegisterValidation(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected exactly one account, got %d", count)
+	}
+}
+
+func TestAccountChangePassword(t *testing.T) {
+	openTestDatabase(t, "change-password.db")
+	router := newAccountRouter()
+
+	recorder, registered := performJSONRequest(router, http.MethodPost, "/register", `{"username":"alice","password":"strong-password"}`, nil)
+	if registered.Code != 200 {
+		t.Fatalf("registration failed: %+v", registered)
+	}
+	cookies := recorder.Result().Cookies()
+
+	_, anonymous := performJSONRequest(router, http.MethodPut, "/password", `{"old_password":"strong-password","new_password":"another-password"}`, nil)
+	if anonymous.Code != 408 {
+		t.Fatalf("anonymous password change should fail: %+v", anonymous)
+	}
+	_, wrongOld := performJSONRequest(router, http.MethodPut, "/password", `{"old_password":"not-the-password","new_password":"another-password"}`, cookies)
+	if wrongOld.Code != 403 {
+		t.Fatalf("wrong current password should be rejected: %+v", wrongOld)
+	}
+	_, tooShort := performJSONRequest(router, http.MethodPut, "/password", `{"old_password":"strong-password","new_password":"short"}`, cookies)
+	if tooShort.Code != 400 {
+		t.Fatalf("short password should be rejected: %+v", tooShort)
+	}
+	_, changed := performJSONRequest(router, http.MethodPut, "/password", `{"old_password":"strong-password","new_password":"another-password"}`, cookies)
+	if changed.Code != 200 {
+		t.Fatalf("password change failed: %+v", changed)
+	}
+
+	_, newLogin := performJSONRequest(router, http.MethodPost, "/login", `{"username":"alice","password":"another-password"}`, nil)
+	if newLogin.Code != 200 {
+		t.Fatalf("login with the new password failed: %+v", newLogin)
+	}
+	_, oldLogin := performJSONRequest(router, http.MethodPost, "/login", `{"username":"alice","password":"strong-password"}`, nil)
+	if oldLogin.Code != 401 {
+		t.Fatalf("the old password should stop working, got %+v", oldLogin)
 	}
 }
 

@@ -53,6 +53,7 @@ func Run() {
 			api.POST("/account/logout", accountController.Logout)
 			api.PUT("/account/profile", accountController.UpdateProfile)
 			api.POST("/account/avatar", accountController.UploadAvatar)
+			api.PUT("/account/password", accountController.ChangePassword)
 			api.GET("/account/questions", questionController.MyQuestions)
 		}
 		// User
@@ -71,6 +72,7 @@ func Run() {
 			api.GET("/member", authMiddleware, memberController.Get)
 			api.POST("/member", authMiddleware, memberController.Post)
 			api.PUT("/member/:uid", authMiddleware, memberController.Put)
+			api.PUT("/member/:uid/password", authMiddleware, memberController.ResetPassword)
 			api.DELETE("/member/:uid", authMiddleware, memberController.Delete)
 		}
 		// Tag

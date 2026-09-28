@@ -136,6 +136,16 @@ export async function uploadAccountAvatar(file: File): Promise<ApiResponse<Accou
   return res.json();
 }
 
+export async function changeAccountPassword(oldPassword: string, newPassword: string): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/account/password`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  });
+  return res.json();
+}
+
 export async function getQuestions(params: {
   page?: number;
   size?: number;

@@ -24,6 +24,10 @@ type memberStatusRequest struct {
 	IsDisabled *bool `json:"is_disabled"`
 }
 
+type memberPasswordRequest struct {
+	Password string `json:"password"`
+}
+
 type memberCreateRequest struct {
 	Username  string `json:"username"`
 	Password  string `json:"password"`
@@ -120,7 +124,7 @@ func (*MemberController) Post(c *gin.Context) {
 func (*MemberController) Put(c *gin.Context) {
 	uid, err := strconv.ParseInt(c.Param("uid"), 10, 64)
 	if err != nil || uid <= 0 {
-		Fail(c, 400, "B 站 UID 无效")
+		Fail(c, 400, "用户 ID 无效")
 		return
 	}
 	var body memberStatusRequest
@@ -144,7 +148,7 @@ func (*MemberController) Put(c *gin.Context) {
 func (*MemberController) Delete(c *gin.Context) {
 	uid, err := strconv.ParseInt(c.Param("uid"), 10, 64)
 	if err != nil || uid <= 0 {
-		Fail(c, 400, "B 站 UID 无效")
+		Fail(c, 400, "用户 ID 无效")
 		return
 	}
 	var user database.User
@@ -154,6 +158,42 @@ func (*MemberController) Delete(c *gin.Context) {
 	}
 	if err := database.DB.Delete(&user).Error; err != nil {
 		Fail(c, 500, "删除用户失败")
+		return
+	}
+	Success(c, nil)
+}
+
+// ResetPassword lets an administrator set a new password for a member, for
+// example when the member forgot it.
+func (*MemberController) ResetPassword(c *gin.Context) {
+	uid, err := strconv.ParseInt(c.Param("uid"), 10, 64)
+	if err != nil || uid <= 0 {
+		Fail(c, 400, "用户 ID 无效")
+		return
+	}
+	var body memberPasswordRequest
+	if err := c.ShouldBindJSON(&body); err != nil {
+		Fail(c, 400, "请求无效")
+		return
+	}
+	if utf8.RuneCountInString(body.Password) < 8 || len([]byte(body.Password)) > 72 {
+		Fail(c, 400, "密码长度需为 8 至 72 个字符")
+		return
+	}
+	var user database.User
+	if err := database.DB.First(&user, uid).Error; err != nil {
+		Fail(c, 404, "用户不存在")
+		return
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	if err != nil {
+		Fail(c, 500, "重置密码失败")
+		return
+	}
+	if err := database.DB.Model(&database.User{}).
+		Where("bilibili_uid = ?", uid).
+		Update("password_hash", string(passwordHash)).Error; err != nil {
+		Fail(c, 500, "重置密码失败")
 		return
 	}
 	Success(c, nil)

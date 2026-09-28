@@ -141,6 +141,46 @@ type accountProfileRequest struct {
 	DisplayID string `json:"display_id"`
 }
 
+type accountPasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+// ChangePassword lets a signed-in member replace their own password after
+// confirming the current one.
+func (*AccountController) ChangePassword(c *gin.Context) {
+	user, ok := currentMember(c)
+	if !ok {
+		Fail(c, 408, "请先登录")
+		return
+	}
+	var body accountPasswordRequest
+	if err := c.ShouldBindJSON(&body); err != nil {
+		Fail(c, 400, "请求无效")
+		return
+	}
+	if utf8.RuneCountInString(body.NewPassword) < 8 || len([]byte(body.NewPassword)) > 72 {
+		Fail(c, 400, "密码长度需为 8 至 72 个字符")
+		return
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(body.OldPassword)) != nil {
+		Fail(c, 403, "原密码不正确")
+		return
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(body.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		Fail(c, 500, "内部错误")
+		return
+	}
+	if err := database.DB.Model(&database.User{}).
+		Where("bilibili_uid = ?", user.BilibiliUID).
+		Update("password_hash", string(passwordHash)).Error; err != nil {
+		Fail(c, 500, "修改密码失败")
+		return
+	}
+	Success(c, nil)
+}
+
 // UpdateProfile stores the public id the member wants to show on real-name posts.
 func (*AccountController) UpdateProfile(c *gin.Context) {
 	user, ok := currentMember(c)

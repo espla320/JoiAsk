@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  KeyRound,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -33,6 +34,7 @@ import {
   deleteMember,
   getMembers,
   Member,
+  resetMemberPassword,
   updateMemberStatus,
 } from "@/lib/api";
 
@@ -52,6 +54,9 @@ export default function MembersPage() {
   const [deleting, setDeleting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [passwordTarget, setPasswordTarget] = useState<Member | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
   const [addForm, setAddForm] = useState({
     username: "",
     password: "",
@@ -143,13 +148,38 @@ export default function MembersPage() {
     } else setError(response.message || "删除失败");
   };
 
+  const openResetPassword = (user: Member) => {
+    setNewPassword("");
+    setError("");
+    setPasswordTarget(user);
+  };
+
+  const resetPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!passwordTarget) return;
+    if (newPassword.length < 8 || new TextEncoder().encode(newPassword).length > 72) {
+      setError("密码长度需为 8 至 72 个字符");
+      return;
+    }
+    setResetting(true);
+    setError("");
+    const response = await resetMemberPassword(passwordTarget.bilibili_uid, newPassword);
+    setResetting(false);
+    if (response.code === 200) {
+      setPasswordTarget(null);
+      setNewPassword("");
+    } else {
+      setError(response.message || "重置失败");
+    }
+  };
+
   return (
     <div className="space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">注册用户</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            管理通过 B 站关注验证或后台手动创建的平台账号
+            管理平台注册账号，可以禁用、重置密码或删除
           </p>
         </div>
         <Button onClick={openAdd}>
@@ -162,8 +192,7 @@ export default function MembersPage() {
         <TableHeader>
           <TableRow>
             <TableHead>用户</TableHead>
-            <TableHead>B 站 UID</TableHead>
-            <TableHead>验证时间</TableHead>
+            <TableHead>展示 ID</TableHead>
             <TableHead>注册时间</TableHead>
             <TableHead>状态</TableHead>
             <TableHead className="text-right">操作</TableHead>
@@ -172,13 +201,13 @@ export default function MembersPage() {
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-10 text-center">
+              <TableCell colSpan={5} className="py-10 text-center">
                 加载中...
               </TableCell>
             </TableRow>
           ) : users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-10 text-center">
+              <TableCell colSpan={5} className="py-10 text-center">
                 暂无注册用户
               </TableCell>
             </TableRow>
@@ -207,9 +236,6 @@ export default function MembersPage() {
                 </TableCell>
                 <TableCell>{user.display_id || "-"}</TableCell>
                 <TableCell className="text-sm">
-                  {formatDate(user.verified_at)}
-                </TableCell>
-                <TableCell className="text-sm">
                   {formatDate(user.created_at)}
                 </TableCell>
                 <TableCell>
@@ -232,6 +258,14 @@ export default function MembersPage() {
                         <Ban className="mr-2 h-4 w-4" />
                       )}
                       {user.is_disabled ? "启用" : "禁用"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openResetPassword(user)}
+                      title="重置密码"
+                    >
+                      <KeyRound className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="outline"
@@ -346,6 +380,50 @@ export default function MembersPage() {
           </form>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={!!passwordTarget}
+        onOpenChange={(open) => {
+          if (!open && !resetting) setPasswordTarget(null);
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={resetPassword}>
+            <DialogHeader>
+              <DialogTitle>重置密码</DialogTitle>
+              <DialogDescription>
+                为 {passwordTarget?.bilibili_name || passwordTarget?.username} 设置一个新的登录密码，设置后请告知对方。
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 py-5">
+              <Label htmlFor="member-new-password">新密码</Label>
+              <Input
+                id="member-new-password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                minLength={8}
+                maxLength={72}
+                autoComplete="off"
+                placeholder="8 至 72 个字符"
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={resetting}
+                onClick={() => setPasswordTarget(null)}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={resetting}>
+                {resetting ? "保存中..." : "确认重置"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
         open={!!deleteTarget}
         onOpenChange={(open) => {

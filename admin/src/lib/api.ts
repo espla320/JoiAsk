@@ -329,3 +329,13 @@ export async function deleteMember(bilibiliUid: string): Promise<ApiResponse<nul
   });
   return res.json();
 }
+
+export async function resetMemberPassword(bilibiliUid: string, password: string): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/member/${bilibiliUid}/password`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  return res.json();
+}
