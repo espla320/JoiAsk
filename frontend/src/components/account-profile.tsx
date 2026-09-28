@@ -69,6 +69,9 @@ export function AccountProfile() {
   };
 
   const avatarSrc = preview || user.bilibili_avatar;
+  const trimmedDisplayId = displayId.trim();
+  const isNumericDisplayId = /^\d+$/.test(trimmedDisplayId);
+  const previewName = user.bilibili_name || user.username;
 
   return (
     <>
@@ -145,7 +148,39 @@ export function AccountProfile() {
                   placeholder="例如你的 B 站 UID 或昵称，可留空"
                 />
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  只会在你勾选「实名投稿」的提问下方显示；纯数字会自动链接到 B 站空间。
+                  只会在你勾选「实名投稿」的提问下方显示。已发布的提问不会回溯更新。
+                </p>
+              </div>
+
+              <div className="rounded-md border border-dashed border-[var(--fabric-stitch)] bg-secondary/40 px-3 py-2.5">
+                <p className="mb-2 text-xs text-muted-foreground">提问下方会这样显示</p>
+                <div className="inline-flex items-center gap-2 text-sm">
+                  {avatarSrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarSrc} alt="" className="h-6 w-6 rounded-full object-cover" />
+                  ) : (
+                    <span className="h-6 w-6 rounded-full bg-muted" />
+                  )}
+                  {isNumericDisplayId ? (
+                    <a
+                      href={`https://space.bilibili.com/${trimmedDisplayId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline underline-offset-2"
+                    >
+                      {previewName}
+                    </a>
+                  ) : (
+                    <span className="text-primary">{previewName}</span>
+                  )}
+                  {trimmedDisplayId && (
+                    <span className="text-xs text-muted-foreground">（ID {trimmedDisplayId}）</span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {isNumericDisplayId
+                    ? `纯数字 ID 会自动链接到 B 站空间：space.bilibili.com/${trimmedDisplayId}`
+                    : "当前 ID 不是纯数字，会按普通文本显示；填成 B 站 UID（纯数字）就会自动变成空间链接。"}
                 </p>
               </div>
 
