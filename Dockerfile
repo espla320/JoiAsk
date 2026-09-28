@@ -1,6 +1,7 @@
 FROM node:22 AS frontend-builder
 WORKDIR /workspace/frontend
 COPY frontend/package*.json ./
+RUN npm config set registry https://registry.npmmirror.com
 RUN npm ci
 COPY frontend .
 COPY shared /workspace/shared
@@ -9,6 +10,7 @@ RUN npm run build
 FROM node:22 AS admin-builder
 WORKDIR /workspace/admin
 COPY admin/package*.json ./
+RUN npm config set registry https://registry.npmmirror.com
 RUN npm ci
 COPY admin .
 COPY shared /workspace/shared
@@ -17,6 +19,8 @@ RUN npm run build
 FROM golang:1.25-alpine AS backend-builder
 WORKDIR /work
 RUN apk add --no-cache gcc musl-dev
+ENV GOPROXY=https://goproxy.cn,direct
+ENV GOSUMDB=off
 ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
 COPY go.mod go.sum ./
 RUN go mod download

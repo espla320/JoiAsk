@@ -3,21 +3,12 @@
 import { useState, useRef, useEffect } from 'react';
 
 const INPUT_EMOJIS = [
-  { name: '跑了', tag: '[轴伊Joi收藏集动态表情包_跑了]', url: '/joi-emojis/paole.webp' },
-  { name: '鞠躬', tag: '[轴伊Joi收藏集动态表情包_鞠躬]', url: '/joi-emojis/jugong.webp' },
-  { name: '摇你', tag: '[轴伊Joi收藏集动态表情包_摇你]', url: '/joi-emojis/yaoni.webp' },
-  { name: '愤怒', tag: '[轴伊Joi收藏集动态表情包_愤怒]', url: '/joi-emojis/fennu.webp' },
-  { name: '猴', tag: '[轴伊Joi收藏集动态表情包_猴]', url: '/joi-emojis/hou.webp' },
-  { name: 'NO', tag: '[轴伊Joi收藏集动态表情包_NO]', url: '/joi-emojis/no.webp' },
-  { name: '贴贴', tag: '[轴伊Joi收藏集动态表情包_贴贴]', url: '/joi-emojis/tietie.webp' },
-  { name: '呆', tag: '[轴伊Joi收藏集动态表情包_呆]', url: '/joi-emojis/dai.webp' },
-  { name: '唔唔', tag: '[轴伊Joi收藏集动态表情包_唔唔]', url: '/joi-emojis/wuwu.webp' },
-  { name: '啊这', tag: '[轴伊Joi收藏集动态表情包_啊这]', url: '/joi-emojis/azhe.webp' },
-  { name: '失落', tag: '[轴伊Joi收藏集动态表情包_失落]', url: '/joi-emojis/shiluo.webp' },
-  { name: '神气', tag: '[轴伊Joi收藏集动态表情包_神气]', url: '/joi-emojis/shenqi.webp' },
-  { name: '怎么这样', tag: '[轴伊Joi收藏集动态表情包_怎么这样]', url: '/joi-emojis/zenmezhyang.webp' },
-  { name: '睡觉', tag: '[轴伊Joi收藏集动态表情包_睡觉]', url: '/joi-emojis/shuijiao.webp' },
-  { name: '爆', tag: '[轴伊Joi收藏集动态表情包_爆]', url: '/joi-emojis/bao.webp' },
+  { name: '打call', tag: '[鸢尾尾直播间表情包_打call]', url: '/ayame_emojis/call.png' },
+  { name: 'suki', tag: '[鸢尾尾直播间表情包_suki]', url: '/ayame_emojis/suki.png' },
+  { name: '欸', tag: '[鸢尾尾直播间表情包_欸]', url: '/ayame_emojis/ei.png' },
+  { name: '疑问', tag: '[鸢尾尾直播间表情包_疑问]', url: '/ayame_emojis/question.png' },
+  { name: '呜呜', tag: '[鸢尾尾直播间表情包_呜呜]', url: '/ayame_emojis/wuwu.png' },
+  { name: '气气', tag: '[鸢尾尾直播间表情包_气气]', url: '/ayame_emojis/heng.png' },
 ];
 
 interface InputEmojiPickerProps {

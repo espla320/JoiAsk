@@ -27,7 +27,7 @@ export function Navbar() {
         <Link href="/">
           <div
             className="cursor-pointer w-10 h-10 bg-contain bg-no-repeat mr-2.5 transition-transform duration-200 hover:scale-105"
-            style={{ backgroundImage: 'url(/favicon.png)' }}
+            style={{ backgroundImage: 'url(/iris-icon.png)' }}
           />
         </Link>
         {NAV_ROUTES.map(({ label, path }) => (

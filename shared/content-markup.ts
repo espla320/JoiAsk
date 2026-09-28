@@ -3,21 +3,12 @@ export const MAX_EFFECT_STRENGTH = 3;
 export const DEFAULT_EFFECT_STRENGTH = 1;
 
 export const CONTENT_EMOJI_MAP: Record<string, string> = {
-  '[轴伊Joi收藏集动态表情包_跑了]': '/joi-emojis/paole.webp',
-  '[轴伊Joi收藏集动态表情包_鞠躬]': '/joi-emojis/jugong.webp',
-  '[轴伊Joi收藏集动态表情包_摇你]': '/joi-emojis/yaoni.webp',
-  '[轴伊Joi收藏集动态表情包_愤怒]': '/joi-emojis/fennu.webp',
-  '[轴伊Joi收藏集动态表情包_猴]': '/joi-emojis/hou.webp',
-  '[轴伊Joi收藏集动态表情包_NO]': '/joi-emojis/no.webp',
-  '[轴伊Joi收藏集动态表情包_贴贴]': '/joi-emojis/tietie.webp',
-  '[轴伊Joi收藏集动态表情包_呆]': '/joi-emojis/dai.webp',
-  '[轴伊Joi收藏集动态表情包_唔唔]': '/joi-emojis/wuwu.webp',
-  '[轴伊Joi收藏集动态表情包_啊这]': '/joi-emojis/azhe.webp',
-  '[轴伊Joi收藏集动态表情包_失落]': '/joi-emojis/shiluo.webp',
-  '[轴伊Joi收藏集动态表情包_神气]': '/joi-emojis/shenqi.webp',
-  '[轴伊Joi收藏集动态表情包_怎么这样]': '/joi-emojis/zenmezhyang.webp',
-  '[轴伊Joi收藏集动态表情包_睡觉]': '/joi-emojis/shuijiao.webp',
-  '[轴伊Joi收藏集动态表情包_爆]': '/joi-emojis/bao.webp',
+  '[鸢尾尾直播间表情包_打call]': '/ayame_emojis/call.png',
+  '[鸢尾尾直播间表情包_suki]': '/ayame_emojis/suki.png',
+  '[鸢尾尾直播间表情包_欸]': '/ayame_emojis/ei.png',
+  '[鸢尾尾直播间表情包_疑问]': '/ayame_emojis/question.png',
+  '[鸢尾尾直播间表情包_呜呜]': '/ayame_emojis/wuwu.png',
+  '[鸢尾尾直播间表情包_气气]': '/ayame_emojis/heng.png',
 };
 
 export type ContentEffectName = 'hide' | 'bold' | 'big' | 'shake';

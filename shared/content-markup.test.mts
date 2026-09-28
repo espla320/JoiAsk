@@ -64,7 +64,7 @@ test('keeps an unclosed effect region literal', () => {
 });
 
 test('recognizes safe links, BV codes, and content emojis', () => {
-  const emojiLabel = '[轴伊Joi收藏集动态表情包_跑了]';
+  const emojiLabel = '[鸢尾尾直播间表情包_打call]';
   assert.deepEqual(
     parseContentMarkup(
       `看 https://example.com 和 BV1xx411c7mD ${emojiLabel}`
@@ -96,4 +96,18 @@ test('supports escaping formatting delimiters', () => {
   assert.deepEqual(parseContentMarkup(String.raw`\[bold\]文字\[/bold\]`), [
     { type: 'text', value: '[bold]文字[/bold]' },
   ]);
+});
+
+test('maps 鸢尾尾直播间 emoji tags to their assets', () => {
+  assert.deepEqual(parseContentMarkup('[鸢尾尾直播间表情包_打call]'), [
+    {
+      type: 'emoji',
+      label: '[鸢尾尾直播间表情包_打call]',
+      src: '/ayame_emojis/call.png',
+    },
+  ]);
+  assert.equal(
+    CONTENT_EMOJI_MAP['[鸢尾尾直播间表情包_气气]'],
+    '/ayame_emojis/heng.png'
+  );
 });

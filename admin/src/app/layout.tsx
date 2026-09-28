@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "JoiAsk 管理后台",
   description: "JoiAsk 提问箱管理后台",
   icons: {
-    icon: "/favicon.png",
+    icon: "/iris-icon.png",
   },
 };
 
