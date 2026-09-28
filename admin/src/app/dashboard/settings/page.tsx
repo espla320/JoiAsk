@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BilibiliVerificationSettings } from "@/components/bilibili-verification-settings";
 import { getSettings, updateSettings } from "@/lib/api";
 
 export default function SettingsPage() {
@@ -104,16 +103,15 @@ export default function SettingsPage() {
               disabled={isLoading}
             />
             <div className="space-y-1">
-              <Label htmlFor="require-verified-user">投稿需要已验证用户</Label>
+              <Label htmlFor="require-verified-user">投稿需要登录</Label>
               <p className="text-sm text-muted-foreground">
-                开启后仅已完成 B 站验证并登录的用户可以投稿。
+                开启后仅已登录的用户可以投稿。
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <BilibiliVerificationSettings />
 
       <Card>
         <CardHeader>

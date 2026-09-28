@@ -391,6 +391,7 @@ func (*QuestionController) Post(c *gin.Context) {
 		q.IsRealName = true
 		q.BilibiliName = member.BilibiliName
 		q.BilibiliAvatar = member.BilibiliAvatar
+		q.DisplayID = member.DisplayID
 	}
 	q.TagID = int(tag.ID)
 	q.Content = strings.Trim(c.PostForm("content"), " \r\n\t")

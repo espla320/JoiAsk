@@ -53,9 +53,9 @@ export default function MembersPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [addForm, setAddForm] = useState({
-    bilibili_uid: "",
     username: "",
     password: "",
+    display_id: "",
   });
 
   const load = useCallback(async () => {
@@ -90,7 +90,7 @@ export default function MembersPage() {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const openAdd = () => {
-    setAddForm({ bilibili_uid: "", username: "", password: "" });
+    setAddForm({ username: "", password: "", display_id: "" });
     setError("");
     setAddOpen(true);
   };
@@ -98,10 +98,6 @@ export default function MembersPage() {
   const add = async (event: React.FormEvent) => {
     event.preventDefault();
     const username = addForm.username.trim();
-    if (!/^[1-9]\d*$/.test(addForm.bilibili_uid.trim())) {
-      setError("请输入有效的 B 站 UID");
-      return;
-    }
     if (username.length < 2 || username.length > 32 || /\s/.test(username)) {
       setError("登录名需为 2 至 32 个字符且不能包含空格");
       return;
@@ -117,9 +113,9 @@ export default function MembersPage() {
     setError("");
     try {
       const response = await createMember({
-        ...addForm,
-        bilibili_uid: addForm.bilibili_uid.trim(),
         username,
+        password: addForm.password,
+        display_id: addForm.display_id.trim(),
       });
       if (response.code !== 200) {
         setError(response.message || "添加失败");
@@ -209,7 +205,7 @@ export default function MembersPage() {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>{user.bilibili_uid}</TableCell>
+                <TableCell>{user.display_id || "-"}</TableCell>
                 <TableCell className="text-sm">
                   {formatDate(user.verified_at)}
                 </TableCell>
@@ -290,16 +286,15 @@ export default function MembersPage() {
             </DialogHeader>
             <div className="space-y-4 py-5">
               <div className="space-y-2">
-                <Label htmlFor="member-bilibili-uid">B 站 UID</Label>
+                <Label htmlFor="member-display-id">展示 ID</Label>
                 <Input
-                  id="member-bilibili-uid"
-                  inputMode="numeric"
-                  value={addForm.bilibili_uid}
+                  id="member-display-id"
+                  value={addForm.display_id}
                   onChange={(event) =>
-                    setAddForm({ ...addForm, bilibili_uid: event.target.value })
+                    setAddForm({ ...addForm, display_id: event.target.value })
                   }
-                  placeholder="请输入 B 站 UID"
-                  required
+                  maxLength={32}
+                  placeholder="可留空，用户之后可以自己设置"
                 />
               </div>
               <div className="space-y-2">
@@ -361,9 +356,8 @@ export default function MembersPage() {
           <DialogHeader>
             <DialogTitle>删除注册用户</DialogTitle>
             <DialogDescription>
-              将删除 {deleteTarget?.bilibili_name}（UID{" "}
-              {deleteTarget?.bilibili_uid}）的平台账号。历史投稿中的 B 站 UID
-              会保留；该 UID 之后可以重新验证注册。
+              将删除 {deleteTarget?.bilibili_name || deleteTarget?.username}{" "}
+              的平台账号。历史投稿会保留作者信息，但该账号将无法再登录。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

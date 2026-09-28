@@ -27,7 +27,7 @@ export interface Question {
   is_publish: boolean;
   is_spam: boolean;
   is_real_name: boolean;
-  bilibili_uid?: string;
+  display_id?: string;
   bilibili_name?: string;
   bilibili_avatar?: string;
   emojis: string;
@@ -47,23 +47,13 @@ export interface Config {
 export interface AccountUser {
   username: string;
   bilibili_uid: string;
+  display_id: string;
   bilibili_name: string;
   bilibili_avatar: string;
   verified_at: string;
   is_disabled: boolean;
   created_at: string;
   updated_at: string;
-}
-
-export interface VerificationStatus {
-  status: 'pending' | 'verified' | 'expired' | 'consumed';
-  target_uid?: string;
-  bilibili_uid?: string;
-  bilibili_name?: string;
-  bilibili_avatar?: string;
-  requested_at: string;
-  expires_at: string;
-  confirmation_until?: string;
 }
 
 export interface ApiResponse<T> {
@@ -115,27 +105,33 @@ export async function logoutAccount(): Promise<ApiResponse<null>> {
   return res.json();
 }
 
-export async function startAccountVerification(bilibiliUid: string): Promise<ApiResponse<VerificationStatus>> {
-  const res = await fetch(`${API_BASE}/account/verification`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bilibili_uid: bilibiliUid }),
-  });
-  return res.json();
-}
-
-export async function getAccountVerification(): Promise<ApiResponse<VerificationStatus>> {
-  const res = await fetch(`${API_BASE}/account/verification`, { credentials: 'include' });
-  return res.json();
-}
-
 export async function registerAccount(username: string, password: string): Promise<ApiResponse<AccountUser>> {
   const res = await fetch(`${API_BASE}/account/register`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
+  });
+  return res.json();
+}
+
+export async function updateAccountProfile(displayId: string): Promise<ApiResponse<AccountUser>> {
+  const res = await fetch(`${API_BASE}/account/profile`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ display_id: displayId }),
+  });
+  return res.json();
+}
+
+export async function uploadAccountAvatar(file: File): Promise<ApiResponse<AccountUser>> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_BASE}/account/avatar`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
   });
   return res.json();
 }

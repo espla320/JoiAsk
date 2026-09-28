@@ -7,7 +7,6 @@
   },
   "security": {
     "session_secret": "dev-only-session-secret-change-in-production",
-    "bilibili_cookie_key": "dev-only-cookie-key-change-in-production",
     "secure_cookie": false
   },
   "storage_type": "local"

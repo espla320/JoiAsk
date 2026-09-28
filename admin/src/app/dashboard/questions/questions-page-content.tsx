@@ -475,11 +475,18 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
                       )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {question.is_real_name && question.bilibili_uid ? (
-                        <a href={`https://space.bilibili.com/${question.bilibili_uid}`} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-[145px] items-center gap-2 text-primary hover:underline">
-                          {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />}
-                          <span className="truncate" title={`UID ${question.bilibili_uid}`}>{question.bilibili_name}</span>
-                        </a>
+                      {question.is_real_name && (question.bilibili_name || question.display_id) ? (
+                        /^\d+$/.test(question.display_id ?? "") ? (
+                          <a href={`https://space.bilibili.com/${question.display_id}`} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-[145px] items-center gap-2 text-primary hover:underline">
+                            {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />}
+                            <span className="truncate" title={`UID ${question.display_id}`}>{question.bilibili_name || question.display_id}</span>
+                          </a>
+                        ) : (
+                          <span className="inline-flex max-w-[145px] items-center gap-2 text-primary">
+                            {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />}
+                            <span className="truncate">{question.bilibili_name || question.display_id}</span>
+                          </span>
+                        )
                       ) : <span className="text-muted-foreground">匿名</span>}
                     </TableCell>
                     <TableCell className="text-center text-sm whitespace-nowrap">
@@ -635,12 +642,19 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
                                   <li>点赞: {question.likes}</li>
                                   <li>图片: {question.images_num}</li>
                                   <li>时间: {formatDate(question.created_at)}</li>
-                                  {question.is_real_name && question.bilibili_uid && (
+                                  {question.is_real_name && (question.bilibili_name || question.display_id) && (
                                     <li>
-                                      <a href={`https://space.bilibili.com/${question.bilibili_uid}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary hover:underline">
-                                        {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
-                                        <span title={`UID ${question.bilibili_uid}`}>{question.bilibili_name}</span>
-                                      </a>
+                                      {/^\d+$/.test(question.display_id ?? "") ? (
+                                        <a href={`https://space.bilibili.com/${question.display_id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary hover:underline">
+                                          {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
+                                          <span title={`UID ${question.display_id}`}>{question.bilibili_name || question.display_id}</span>
+                                        </a>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-2">
+                                          {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
+                                          <span>{question.bilibili_name || question.display_id}</span>
+                                        </span>
+                                      )}
                                     </li>
                                   )}
                                 </ul>

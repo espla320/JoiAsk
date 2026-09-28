@@ -241,7 +241,7 @@ export default function HomePage() {
     is_hide: false,
     is_rainbow: isRainbow,
     is_real_name: isRealName,
-    bilibili_uid: isRealName ? accountUser?.bilibili_uid : undefined,
+    display_id: isRealName ? accountUser?.display_id : undefined,
     bilibili_name: isRealName ? accountUser?.bilibili_name : undefined,
     bilibili_avatar: isRealName ? accountUser?.bilibili_avatar : undefined,
     is_archive: false,

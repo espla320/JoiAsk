@@ -317,16 +317,27 @@ export function PostCard({ data, isLoggedIn = false, emojiUpdates, archiveUpdate
 
             {/* Footer */}
             <div className="text-right text-sm min-h-6 flex justify-between items-center gap-2">
-              {data.is_real_name && data.bilibili_uid ? (
-                <a
-                  href={`https://space.bilibili.com/${data.bilibili_uid}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex max-w-[220px] items-center gap-2 rounded px-1.5 py-0.5 text-left text-primary transition hover:bg-accent"
-                >
-                  {data.bilibili_avatar && <img src={data.bilibili_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
-                  <span className="truncate" title={`UID ${data.bilibili_uid}`}>{data.bilibili_name}</span>
-                </a>
+              {data.is_real_name && (data.bilibili_name || data.display_id) ? (
+                /^\d+$/.test(data.display_id ?? '') ? (
+                  <a
+                    href={`https://space.bilibili.com/${data.display_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex max-w-[220px] items-center gap-2 rounded px-1.5 py-0.5 text-left text-primary transition hover:bg-accent"
+                  >
+                    {data.bilibili_avatar && <img src={data.bilibili_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
+                    <span className="truncate" title={`UID ${data.display_id}`}>
+                      {data.bilibili_name || data.display_id}
+                    </span>
+                  </a>
+                ) : (
+                  <span className="inline-flex max-w-[220px] items-center gap-2 px-1.5 py-0.5 text-left text-primary">
+                    {data.bilibili_avatar && <img src={data.bilibili_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
+                    <span className="truncate" title={data.display_id || undefined}>
+                      {data.bilibili_name || data.display_id}
+                    </span>
+                  </span>
+                )
               ) : <span />}
               <div className="flex items-center">
               <EmojiPicker
