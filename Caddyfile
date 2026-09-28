@@ -1,9 +1,9 @@
 {
 	admin off
-	auto_https off
 }
 
-:80 {
+# 站点路由：被下面的域名站点和 :80 兜底站点共同复用
+(joiask) {
 	request_body {
 		max_size 30MB
 	}
@@ -36,4 +36,14 @@
 		output stdout
 		format console
 	}
+}
+
+# 生产域名：自动申请/续期 Let's Encrypt 证书，http 自动跳转到 https
+ask.ayame.live {
+	import joiask
+}
+
+# 兜底：直接访问 IP 或 localhost 时走这里（本地测试用，纯 http）
+:80 {
+	import joiask
 }

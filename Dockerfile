@@ -37,5 +37,5 @@ ENV GIN_MODE=release
 COPY start.sh /usr/local/bin/start-joiask
 RUN mkdir -p /work/frontend/public/upload-img \
 	&& chmod +x /usr/local/bin/start-joiask
-EXPOSE 80
+EXPOSE 80 443
 CMD ["start-joiask"]
