@@ -63,7 +63,7 @@ export function Sidebar() {
         }}
       >
         <h1 className="text-base font-semibold tracking-tight text-sidebar-foreground">
-          JoiAsk 管理后台
+          天使提问箱管理后台
         </h1>
       </div>
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
