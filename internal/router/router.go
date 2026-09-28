@@ -66,6 +66,7 @@ func Run() {
 			api.POST("/account/login", accountController.Login)
 			api.GET("/account/info", accountController.Info)
 			api.POST("/account/logout", accountController.Logout)
+			api.GET("/account/questions", questionController.MyQuestions)
 		}
 		// User
 		{
@@ -107,6 +108,7 @@ func Run() {
 			api.POST("/question/:id/emoji", questionController.Emoji)
 			api.GET("/sse", questionController.SSE)
 			api.GET("/ws", questionController.WebSocket)
+			api.PUT("/question/:id/reply", authMiddleware, questionController.PutReply)
 			api.DELETE("/question/:id", authMiddleware, questionController.Delete)
 		}
 		// Config

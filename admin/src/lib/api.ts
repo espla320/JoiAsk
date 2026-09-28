@@ -36,6 +36,10 @@ export interface Question {
   likes: number;
   created_at: string;
   updated_at: string;
+  // Reply data is only returned to administrators and to the question author.
+  reply?: string;
+  replied_at?: string;
+  has_author?: boolean;
 }
 
 export interface Config {
@@ -201,6 +205,16 @@ export async function updateQuestion(id: number, data: {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function replyQuestion(id: number, reply: string): Promise<ApiResponse<null>> {
+  const res = await fetch(`${API_BASE}/question/${id}/reply`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reply }),
   });
   return res.json();
 }

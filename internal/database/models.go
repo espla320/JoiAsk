@@ -35,6 +35,12 @@ type Question struct {
 	BilibiliName   string `gorm:"size:255" json:"bilibili_name,omitempty"`
 	BilibiliAvatar string `gorm:"size:1024" json:"bilibili_avatar,omitempty"`
 	Emojis         string `json:"emojis"`
+	// Reply is the administrator's answer to this question. It is never part of
+	// the default JSON payload: only the question author and administrators may
+	// read it, which is signalled per request with ReplyVisible.
+	Reply        string     `gorm:"type:text" json:"-"`
+	RepliedAt    *time.Time `json:"-"`
+	ReplyVisible bool       `gorm:"-" json:"-"`
 }
 
 func (q Question) MarshalJSON() ([]byte, error) {
@@ -48,12 +54,30 @@ func (q Question) MarshalJSON() ([]byte, error) {
 		copy.BilibiliName = ""
 		copy.BilibiliAvatar = ""
 	}
+	var reply *string
+	var repliedAt *time.Time
+	var hasAuthor *bool
+	if copy.ReplyVisible {
+		hasAuthorValue := copy.BilibiliUID != nil
+		hasAuthor = &hasAuthorValue
+		if copy.Reply != "" {
+			value := copy.Reply
+			reply = &value
+			repliedAt = copy.RepliedAt
+		}
+	}
 	return json.Marshal(struct {
 		*questionAlias
-		BilibiliUID *string `json:"bilibili_uid,omitempty"`
+		BilibiliUID *string    `json:"bilibili_uid,omitempty"`
+		Reply       *string    `json:"reply,omitempty"`
+		RepliedAt   *time.Time `json:"replied_at,omitempty"`
+		HasAuthor   *bool      `json:"has_author,omitempty"`
 	}{
 		questionAlias: (*questionAlias)(&copy),
 		BilibiliUID:   publicUID,
+		Reply:         reply,
+		RepliedAt:     repliedAt,
+		HasAuthor:     hasAuthor,
 	})
 }
 

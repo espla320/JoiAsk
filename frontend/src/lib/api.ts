@@ -34,6 +34,9 @@ export interface Question {
   likes: number;
   created_at: string;
   updated_at: string;
+  // Only present for the question author and for administrators.
+  reply?: string;
+  replied_at?: string;
 }
 
 export interface Config {
@@ -197,6 +200,14 @@ export async function addEmoji(questionId: number, emoji: string): Promise<ApiRe
     method: 'POST',
     credentials: 'include',
     body: formData,
+  });
+  return res.json();
+}
+
+export async function getMyQuestions(): Promise<ApiResponse<{ questions: Question[] }>> {
+  const res = await fetch(`${API_BASE}/account/questions`, {
+    method: 'GET',
+    credentials: 'include',
   });
   return res.json();
 }
