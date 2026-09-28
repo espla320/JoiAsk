@@ -4,7 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Loader2, Settings, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { changeAccountPassword, fetchBilibiliAvatar, updateAccountProfile, uploadAccountAvatar } from "@/lib/api";
+import {
+  changeAccountPassword,
+  fetchBilibiliAvatar,
+  updateAccountProfile,
+  uploadAccountAvatar,
+  UploadProgress,
+} from "@/lib/api";
+import { formatBytes, formatSpeed } from "@/lib/format";
 import { useAccountAuth } from "@/lib/account-auth";
 
 export function AccountProfile() {
@@ -13,6 +20,7 @@ export function AccountProfile() {
   const [displayId, setDisplayId] = useState("");
   const [isBilibiliUid, setIsBilibiliUid] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarProgress, setAvatarProgress] = useState<UploadProgress | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -58,7 +66,8 @@ export function AccountProfile() {
     setMessage("");
     try {
       if (avatarFile) {
-        const uploaded = await uploadAccountAvatar(avatarFile);
+        setAvatarProgress(null);
+        const uploaded = await uploadAccountAvatar(avatarFile, setAvatarProgress);
         if (uploaded.code !== 200) {
           setError(uploaded.message || "头像上传失败");
           return;
@@ -82,6 +91,7 @@ export function AccountProfile() {
       setError("保存失败，请稍后重试");
     } finally {
       setBusy(false);
+      setAvatarProgress(null);
     }
   };
 
@@ -212,6 +222,21 @@ export function AccountProfile() {
                     </Button>
                   )}
                   <p className="text-xs text-muted-foreground">支持常见图片格式，最大 5 MB。</p>
+                  {busy && avatarProgress && (
+                    <div className="space-y-1">
+                      <div className="h-1.5 w-40 overflow-hidden rounded bg-secondary">
+                        <div
+                          className="h-full rounded bg-primary transition-[width] duration-200"
+                          style={{ width: `${avatarProgress.percent}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        头像上传 {avatarProgress.percent}% · {formatBytes(avatarProgress.loaded)} /{' '}
+                        {formatBytes(avatarProgress.total)} · {formatSpeed(avatarProgress.bytesPerSecond)}
+                        {avatarProgress.percent >= 100 ? ' · 处理中…' : ''}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
