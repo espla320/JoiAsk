@@ -13,173 +13,151 @@ import (
 	"time"
 )
 
-const defaultBaseURL = "https://api.bilibili.com"
+const (
+	defaultBaseURL   = "https://api.bilibili.com"
+	maxAvatarSize    = 5 << 20
+	defaultUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+)
 
+// Profile is the public information of a B 站 user.
+type Profile struct {
+	MID     int64
+	Name    string
+	FaceURL string
+}
+
+// Client talks to the public B 站 endpoints that do not require a login cookie.
 type Client struct {
 	BaseURL    string
 	HTTPClient *http.Client
-}
-
-type Follower struct {
-	MID   int64  `json:"mid"`
-	MTime int64  `json:"mtime"`
-	Name  string `json:"uname"`
-	Face  string `json:"face"`
-}
-
-type Profile struct {
-	MID       int64  `json:"mid"`
-	Name      string `json:"name"`
-	Face      string `json:"face"`
-	Signature string `json:"sign"`
-}
-
-type apiResponse[T any] struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Data    T      `json:"data"`
-}
-
-type navData struct {
-	IsLogin bool  `json:"isLogin"`
-	MID     int64 `json:"mid"`
-}
-
-type followerData struct {
-	List []Follower `json:"list"`
+	// AvatarHosts lists the image hosts that may be downloaded. It defaults to
+	// the B 站 image CDN.
+	AvatarHosts []string
 }
 
 func NewClient() *Client {
-	return &Client{BaseURL: defaultBaseURL, HTTPClient: &http.Client{Timeout: 15 * time.Second}}
+	return &Client{
+		BaseURL:     defaultBaseURL,
+		HTTPClient:  &http.Client{Timeout: 15 * time.Second},
+		AvatarHosts: []string{"hdslb.com"},
+	}
 }
 
-func (c *Client) endpoint(path string) string {
+func (c *Client) baseURL() string {
 	if c.BaseURL == "" {
-		return defaultBaseURL + path
+		return defaultBaseURL
 	}
-	return c.BaseURL + path
+	return c.BaseURL
 }
 
-func (c *Client) do(ctx context.Context, endpoint, cookie string, target any) error {
-	return c.doWithHeaders(ctx, endpoint, cookie, target, nil)
+func (c *Client) httpClient() *http.Client {
+	if c.HTTPClient == nil {
+		return &http.Client{Timeout: 15 * time.Second}
+	}
+	return c.HTTPClient
 }
 
-func (c *Client) doWithHeaders(ctx context.Context, endpoint, cookie string, target any, extra http.Header) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return err
+func (c *Client) avatarHosts() []string {
+	if len(c.AvatarHosts) == 0 {
+		return []string{"hdslb.com"}
 	}
-	req.Header.Set("Cookie", cookie)
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Accept-Language", "en,zh;q=0.9,zh-CN;q=0.8")
-	req.Header.Set("Cache-Control", "no-cache")
-	req.Header.Set("Pragma", "no-cache")
-	req.Header.Set("Priority", "u=1, i")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36")
-	req.Header.Set("Referer", "https://www.bilibili.com/")
-	for key, values := range extra {
-		if len(values) > 0 {
-			req.Header.Set(key, values[0])
-		}
-	}
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("B 站请求失败: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("B 站返回 HTTP %d", resp.StatusCode)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(target); err != nil {
-		return fmt.Errorf("B 站响应无效: %w", err)
-	}
-	return nil
+	return c.AvatarHosts
 }
 
-func (c *Client) ValidateAccount(ctx context.Context, cookie string) (int64, error) {
-	var response apiResponse[navData]
-	if err := c.do(ctx, c.endpoint("/x/web-interface/nav"), cookie, &response); err != nil {
-		return 0, err
-	}
-	if response.Code != 0 {
-		return 0, fmt.Errorf("B 站登录校验失败: %s (%d)", response.Message, response.Code)
-	}
-	if !response.Data.IsLogin || response.Data.MID <= 0 {
-		return 0, errors.New("B 站 Cookie 已失效或未登录")
-	}
-	return response.Data.MID, nil
+type cardResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		Card struct {
+			Name string `json:"name"`
+			Face string `json:"face"`
+		} `json:"card"`
+	} `json:"data"`
 }
 
-func (c *Client) Followers(ctx context.Context, uid int64, cookie string, limit int) ([]Follower, error) {
-	if limit < 1 || limit > 50 {
-		limit = 50
-	}
-	values := url.Values{}
-	values.Set("vmid", strconv.FormatInt(uid, 10))
-	values.Set("pn", "1")
-	values.Set("ps", strconv.Itoa(limit))
-	values.Set("gaia_source", "main_web")
-	values.Set("web_location", "333.1387")
-	var response apiResponse[followerData]
-	headers := http.Header{}
-	headers.Set("Origin", "https://space.bilibili.com")
-	headers.Set("Referer", "https://space.bilibili.com/"+strconv.FormatInt(uid, 10)+"/relation/fans")
-	headers.Set("Sec-CH-UA", `"Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151"`)
-	headers.Set("Sec-CH-UA-Mobile", "?0")
-	headers.Set("Sec-CH-UA-Platform", `"macOS"`)
-	headers.Set("Sec-Fetch-Dest", "empty")
-	headers.Set("Sec-Fetch-Mode", "cors")
-	headers.Set("Sec-Fetch-Site", "same-site")
-	if err := c.doWithHeaders(ctx, c.endpoint("/x/relation/fans")+"?"+values.Encode(), cookie, &response, headers); err != nil {
-		return nil, err
-	}
-	if response.Code != 0 {
-		return nil, fmt.Errorf("获取 B 站粉丝失败: %s (%d)", response.Message, response.Code)
-	}
-	return response.Data.List, nil
-}
-
+// Profile fetches the public profile of a B 站 user.
 func (c *Client) Profile(ctx context.Context, uid int64) (Profile, error) {
-	endpoint := "https://m.bilibili.com/space/" + strconv.FormatInt(uid, 10)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if uid <= 0 {
+		return Profile{}, errors.New("B 站 UID 无效")
+	}
+	value := strconv.FormatInt(uid, 10)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL()+"/x/web-interface/card?mid="+value, nil)
 	if err != nil {
 		return Profile{}, err
 	}
-	req.Header.Set("Accept", "text/html,application/xhtml+xml")
-	req.Header.Set("Cache-Control", "no-cache")
-	req.Header.Set("Pragma", "no-cache")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148")
-	resp, err := c.HTTPClient.Do(req)
+	request.Header.Set("User-Agent", defaultUserAgent)
+	request.Header.Set("Referer", "https://space.bilibili.com/"+value)
+	response, err := c.httpClient().Do(request)
 	if err != nil {
-		return Profile{}, fmt.Errorf("B 站移动端空间请求失败: %w", err)
+		return Profile{}, fmt.Errorf("请求 B 站失败: %w", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return Profile{}, fmt.Errorf("B 站移动端空间返回 HTTP %d", resp.StatusCode)
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return Profile{}, fmt.Errorf("B 站返回 HTTP %d", response.StatusCode)
 	}
-	html, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
+	var payload cardResponse
+	if err := json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&payload); err != nil {
+		return Profile{}, fmt.Errorf("B 站响应无效: %w", err)
+	}
+	if payload.Code == -404 {
+		return Profile{}, errors.New("B 站用户不存在")
+	}
+	if payload.Code != 0 {
+		return Profile{}, fmt.Errorf("B 站返回错误: %s (%d)", payload.Message, payload.Code)
+	}
+	card := payload.Data.Card
+	if strings.TrimSpace(card.Name) == "" || strings.TrimSpace(card.Face) == "" {
+		return Profile{}, errors.New("B 站用户信息不完整")
+	}
+	return Profile{MID: uid, Name: card.Name, FaceURL: card.Face}, nil
+}
+
+// Avatar downloads an avatar image from an allowed B 站 image host.
+func (c *Client) Avatar(ctx context.Context, faceURL string) ([]byte, error) {
+	parsed, err := url.Parse(strings.TrimSpace(faceURL))
+	if err != nil || !c.allowedAvatarHost(parsed) {
+		return nil, errors.New("B 站头像地址无效")
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
 	if err != nil {
-		return Profile{}, fmt.Errorf("读取 B 站移动端空间失败: %w", err)
+		return nil, err
 	}
-	start := strings.Index(string(html), "window.__INITIAL_STATE__=")
-	if start < 0 {
-		return Profile{}, errors.New("B 站移动端页面缺少用户状态")
+	request.Header.Set("User-Agent", defaultUserAgent)
+	request.Header.Set("Referer", "https://www.bilibili.com/")
+	response, err := c.httpClient().Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("下载 B 站头像失败: %w", err)
 	}
-	start += len("window.__INITIAL_STATE__=")
-	end := strings.Index(string(html[start:]), ";(function(){")
-	if end < 0 {
-		return Profile{}, errors.New("B 站移动端页面用户状态格式无效")
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("下载 B 站头像失败: HTTP %d", response.StatusCode)
 	}
-	var state struct {
-		Space struct {
-			Info Profile `json:"info"`
-		} `json:"space"`
+	content, err := io.ReadAll(io.LimitReader(response.Body, maxAvatarSize+1))
+	if err != nil {
+		return nil, fmt.Errorf("读取 B 站头像失败: %w", err)
 	}
-	if err := json.Unmarshal(html[start:start+end], &state); err != nil {
-		return Profile{}, fmt.Errorf("解析 B 站移动端用户状态失败: %w", err)
+	if len(content) == 0 {
+		return nil, errors.New("B 站头像内容为空")
 	}
-	if state.Space.Info.MID != uid || state.Space.Info.Name == "" || state.Space.Info.Face == "" {
-		return Profile{}, errors.New("B 站移动端用户信息无效")
+	if len(content) > maxAvatarSize {
+		return nil, errors.New("B 站头像超过 5 MB")
 	}
-	return state.Space.Info, nil
+	if !strings.HasPrefix(http.DetectContentType(content), "image/") {
+		return nil, errors.New("B 站头像格式无效")
+	}
+	return content, nil
+}
+
+func (c *Client) allowedAvatarHost(value *url.URL) bool {
+	host := strings.ToLower(value.Hostname())
+	if host == "" {
+		return false
+	}
+	for _, allowed := range c.avatarHosts() {
+		allowed = strings.ToLower(allowed)
+		if host == allowed || strings.HasSuffix(host, "."+allowed) {
+			return true
+		}
+	}
+	return false
 }

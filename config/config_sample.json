@@ -14,7 +14,6 @@
     },
   "security": {
     "session_secret": "replace-with-a-long-random-secret",
-    "bilibili_cookie_key": "replace-with-an-independent-long-random-key",
     "secure_cookie": false
   },
   "storage_type": "oss",

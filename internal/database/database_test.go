@@ -147,17 +147,18 @@ func TestUserUsesBilibiliUIDAsPrimaryKey(t *testing.T) {
 	}
 }
 
-func TestQuestionOnlyExposesBilibiliIdentityForRealNamePosts(t *testing.T) {
+func TestQuestionOnlyExposesAuthorIdentityForRealNamePosts(t *testing.T) {
 	uid := int64(123456)
 	anonymous, err := json.Marshal(Question{
 		BilibiliUID:    &uid,
 		BilibiliName:   "测试用户",
 		BilibiliAvatar: "/upload-img/avatar.jpg",
+		DisplayID:      "alice",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"bilibili_uid", "username", "bilibili_name", "bilibili_avatar"} {
+	for _, field := range []string{"bilibili_uid", "display_id", "username", "bilibili_name", "bilibili_avatar"} {
 		if strings.Contains(string(anonymous), field) {
 			t.Fatalf("anonymous question exposed %s: %s", field, anonymous)
 		}
@@ -168,13 +169,18 @@ func TestQuestionOnlyExposesBilibiliIdentityForRealNamePosts(t *testing.T) {
 		IsRealName:     true,
 		BilibiliName:   "测试用户",
 		BilibiliAvatar: "/upload-img/avatar.jpg",
+		DisplayID:      "alice",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{`"bilibili_uid":"123456"`, `"bilibili_name":"测试用户"`, `"bilibili_avatar":"/upload-img/avatar.jpg"`} {
+	for _, expected := range []string{`"display_id":"alice"`, `"bilibili_name":"测试用户"`, `"bilibili_avatar":"/upload-img/avatar.jpg"`} {
 		if !strings.Contains(string(realName), expected) {
 			t.Fatalf("real-name question missing %s: %s", expected, realName)
 		}
+	}
+	// the internal account id must never leak through the public payload
+	if strings.Contains(string(realName), `"bilibili_uid":"123456"`) {
+		t.Fatalf("real-name question leaked the internal account id: %s", realName)
 	}
 }

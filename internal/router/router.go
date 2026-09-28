@@ -1,14 +1,9 @@
 package router
 
 import (
-	"context"
-	"joiask-backend/internal/avatar"
-	"joiask-backend/internal/bilibili"
 	"joiask-backend/internal/controller"
-	"joiask-backend/internal/verification"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
@@ -48,24 +43,19 @@ func Run() {
 	configController := new(controller.ConfigController)
 	statisticsController := new(controller.StatisticsController)
 	accountController := new(controller.AccountController)
-	bilibiliClient := bilibili.NewClient()
-	memberController := &controller.MemberController{Client: bilibiliClient, AvatarStorage: avatar.NewStore()}
-	verificationAccountController := &controller.BilibiliVerificationAccountController{Client: bilibiliClient}
-	verification.NewWorker(bilibiliClient).Start(context.Background())
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
-		avatar.NewStore().SyncExistingUsers(ctx)
-	}()
+	memberController := new(controller.MemberController)
 	{
 		// Public member account
 		{
-			api.POST("/account/verification", accountController.StartVerification)
-			api.GET("/account/verification", accountController.VerificationStatus)
 			api.POST("/account/register", accountController.Register)
 			api.POST("/account/login", accountController.Login)
 			api.GET("/account/info", accountController.Info)
 			api.POST("/account/logout", accountController.Logout)
+			api.PUT("/account/profile", accountController.UpdateProfile)
+			api.POST("/account/avatar", accountController.UploadAvatar)
+			api.POST("/account/avatar/bilibili", accountController.FetchBilibiliAvatar)
+			api.PUT("/account/password", accountController.ChangePassword)
+			api.GET("/account/questions", questionController.MyQuestions)
 		}
 		// User
 		{
@@ -83,14 +73,8 @@ func Run() {
 			api.GET("/member", authMiddleware, memberController.Get)
 			api.POST("/member", authMiddleware, memberController.Post)
 			api.PUT("/member/:uid", authMiddleware, memberController.Put)
+			api.PUT("/member/:uid/password", authMiddleware, memberController.ResetPassword)
 			api.DELETE("/member/:uid", authMiddleware, memberController.Delete)
-		}
-		// Bilibili verification account
-		{
-			api.GET("/bilibili-verification-account", authMiddleware, verificationAccountController.Get)
-			api.PUT("/bilibili-verification-account", authMiddleware, verificationAccountController.Put)
-			api.POST("/bilibili-verification-account/test", authMiddleware, verificationAccountController.Test)
-			api.DELETE("/bilibili-verification-account", authMiddleware, verificationAccountController.Delete)
 		}
 		// Tag
 		{
@@ -107,6 +91,7 @@ func Run() {
 			api.POST("/question/:id/emoji", questionController.Emoji)
 			api.GET("/sse", questionController.SSE)
 			api.GET("/ws", questionController.WebSocket)
+			api.PUT("/question/:id/reply", authMiddleware, questionController.PutReply)
 			api.DELETE("/question/:id", authMiddleware, questionController.Delete)
 		}
 		// Config

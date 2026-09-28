@@ -37,6 +37,7 @@ import {
   ChevronDown,
   ChevronUp,
   Inbox,
+  MessageSquare,
   MoreHorizontal,
   Trash2,
   TrashIcon,
@@ -46,13 +47,22 @@ import {
   getTags,
   updateQuestion,
   deleteQuestion,
+  replyQuestion,
   Question,
   Tag,
 } from "@/lib/api";
+import { Textarea } from "@/components/ui/textarea";
 import { FormattedContent } from "@/components/formatted-content";
 
 function formatDate(dateString: string) {
   return new Date(dateString).toLocaleString("zh-CN");
+}
+
+// Real-name posts link to the B 站 space when the author marked the display id
+// as a B 站 uid; older questions fall back to the numeric heuristic.
+function linksToBilibiliSpace(displayId?: string, isBilibiliUid?: boolean): boolean {
+  if (!/^\d+$/.test(displayId ?? "")) return false;
+  return isBilibiliUid ?? true;
 }
 
 interface QuestionsPageContentProps {
@@ -75,6 +85,14 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
     id: number;
   }>({ open: false, id: 0 });
   const [isLoading, setIsLoading] = useState(false);
+  const [replyDialog, setReplyDialog] = useState<{
+    open: boolean;
+    id: number;
+    content: string;
+    value: string;
+    hasAuthor: boolean;
+    saving: boolean;
+  }>({ open: false, id: 0, content: "", value: "", hasAuthor: true, saving: false });
 
   const loadTags = useCallback(async () => {
     try {
@@ -197,6 +215,43 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
       console.error("Failed to delete question:", error);
     } finally {
       setDeleteDialog({ open: false, id: 0 });
+    }
+  };
+
+  const openReplyDialog = (question: Question) => {
+    setReplyDialog({
+      open: true,
+      id: question.id,
+      content: question.content,
+      value: question.reply ?? "",
+      hasAuthor: question.has_author !== false,
+      saving: false,
+    });
+  };
+
+  const handleSaveReply = async () => {
+    const { id, value } = replyDialog;
+    setReplyDialog((prev) => ({ ...prev, saving: true }));
+    try {
+      const res = await replyQuestion(id, value);
+      if (res.code === 200) {
+        const trimmed = value.trim();
+        setQuestions((prev) =>
+          prev.map((q) =>
+            q.id === id
+              ? { ...q, reply: trimmed, replied_at: trimmed ? new Date().toISOString() : undefined }
+              : q
+          )
+        );
+        setReplyDialog({ open: false, id: 0, content: "", value: "", hasAuthor: true, saving: false });
+      } else {
+        alert(res.message || "保存回复失败");
+        setReplyDialog((prev) => ({ ...prev, saving: false }));
+      }
+    } catch (error) {
+      console.error("Failed to save reply:", error);
+      alert("保存回复失败");
+      setReplyDialog((prev) => ({ ...prev, saving: false }));
     }
   };
 
@@ -419,13 +474,26 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
                       {question.content.length > 120 && (
                         <span className="text-muted-foreground">…</span>
                       )}
+                      {question.reply && (
+                        <span className="ml-1 inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 align-middle text-[10px] text-primary">
+                          <MessageSquare className="h-3 w-3" />
+                          已回复
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {question.is_real_name && question.bilibili_uid ? (
-                        <a href={`https://space.bilibili.com/${question.bilibili_uid}`} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-[145px] items-center gap-2 text-primary hover:underline">
-                          {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />}
-                          <span className="truncate" title={`UID ${question.bilibili_uid}`}>{question.bilibili_name}</span>
-                        </a>
+                      {question.is_real_name && (question.bilibili_name || question.display_id) ? (
+                        linksToBilibiliSpace(question.display_id, question.display_is_bilibili_uid) ? (
+                          <a href={`https://space.bilibili.com/${question.display_id}`} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-[145px] items-center gap-2 text-primary hover:underline">
+                            {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />}
+                            <span className="truncate" title={`UID ${question.display_id}`}>{question.bilibili_name || question.display_id}</span>
+                          </a>
+                        ) : (
+                          <span className="inline-flex max-w-[145px] items-center gap-2 text-primary">
+                            {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />}
+                            <span className="truncate">{question.bilibili_name || question.display_id}</span>
+                          </span>
+                        )
                       ) : <span className="text-muted-foreground">匿名</span>}
                     </TableCell>
                     <TableCell className="text-center text-sm whitespace-nowrap">
@@ -483,6 +551,18 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
+                            disabled={question.has_author === false}
+                            title={
+                              question.has_author === false
+                                ? "该提问未登录投稿，回复无法送达提问者"
+                                : undefined
+                            }
+                            onSelect={() => openReplyDialog(question)}
+                          >
+                            <MessageSquare />
+                            {question.reply ? "编辑回复" : "回复提问"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onSelect={() => handleMove(question)}
                           >
                             {isSpam ? <Inbox /> : <TrashIcon />}
@@ -520,6 +600,16 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
                                   <FormattedContent content={question.content} />
                                 </div>
                               </div>
+                              {question.reply && (
+                                <div className="min-w-0">
+                                  <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                    回复（仅提问者可见）
+                                  </h4>
+                                  <div className="whitespace-pre-wrap break-words rounded-lg border border-border bg-card px-4 py-3 text-sm leading-relaxed overflow-hidden">
+                                    <FormattedContent content={question.reply} />
+                                  </div>
+                                </div>
+                              )}
                               {question.images_num > 0 && (
                                 <div className="min-w-0">
                                   <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -559,12 +649,19 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
                                   <li>点赞: {question.likes}</li>
                                   <li>图片: {question.images_num}</li>
                                   <li>时间: {formatDate(question.created_at)}</li>
-                                  {question.is_real_name && question.bilibili_uid && (
+                                  {question.is_real_name && (question.bilibili_name || question.display_id) && (
                                     <li>
-                                      <a href={`https://space.bilibili.com/${question.bilibili_uid}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary hover:underline">
-                                        {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
-                                        <span title={`UID ${question.bilibili_uid}`}>{question.bilibili_name}</span>
-                                      </a>
+                                      {linksToBilibiliSpace(question.display_id, question.display_is_bilibili_uid) ? (
+                                        <a href={`https://space.bilibili.com/${question.display_id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary hover:underline">
+                                          {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
+                                          <span title={`UID ${question.display_id}`}>{question.bilibili_name || question.display_id}</span>
+                                        </a>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-2">
+                                          {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
+                                          <span>{question.bilibili_name || question.display_id}</span>
+                                        </span>
+                                      )}
                                     </li>
                                   )}
                                 </ul>
@@ -688,6 +785,57 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
           </Button>
         </div>
       </section>
+
+      <Dialog
+        open={replyDialog.open}
+        onOpenChange={(open) =>
+          setReplyDialog((prev) =>
+            open ? { ...prev, open } : { ...prev, open: false, saving: false }
+          )
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>回复提问</DialogTitle>
+            <DialogDescription>
+              回复只有提问者本人能看到，不会出现在公开页面上。支持与投稿相同的格式标签（如
+              [bold]、[hide]、[big=2]）。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+              <FormattedContent content={replyDialog.content.slice(0, 200)} />
+            </div>
+            <Textarea
+              value={replyDialog.value}
+              onChange={(e) =>
+                setReplyDialog((prev) => ({ ...prev, value: e.target.value }))
+              }
+              rows={6}
+              maxLength={2000}
+              placeholder="写给提问者的回复；留空并保存可删除已有回复"
+            />
+            {!replyDialog.hasAuthor && (
+              <p className="text-xs text-destructive">
+                该提问未登录投稿，回复无法送达提问者。
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setReplyDialog({ open: false, id: 0, content: "", value: "", hasAuthor: true, saving: false })
+              }
+            >
+              取消
+            </Button>
+            <Button onClick={handleSaveReply} disabled={replyDialog.saving}>
+              {replyDialog.saving ? "保存中..." : "保存回复"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={deleteDialog.open}

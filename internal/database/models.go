@@ -2,7 +2,6 @@ package database
 
 import (
 	"encoding/json"
-	"strconv"
 	"time"
 )
 
@@ -34,70 +33,73 @@ type Question struct {
 	IsRealName     bool   `gorm:"index;not null;default:false" json:"is_real_name"`
 	BilibiliName   string `gorm:"size:255" json:"bilibili_name,omitempty"`
 	BilibiliAvatar string `gorm:"size:1024" json:"bilibili_avatar,omitempty"`
-	Emojis         string `json:"emojis"`
+	// DisplayID is the author's self-declared public id, shown for real-name posts.
+	DisplayID string `gorm:"size:64" json:"display_id,omitempty"`
+	// DisplayIsBilibiliUID marks DisplayID as a B 站 uid: such posts link to the
+	// author's space. A nil value means "unknown" and falls back to the numeric
+	// heuristic, which keeps questions written before this field existed working.
+	DisplayIsBilibiliUID *bool  `json:"display_is_bilibili_uid,omitempty"`
+	Emojis               string `json:"emojis"`
+	// Reply is the administrator's answer to this question. It is never part of
+	// the default JSON payload: only the question author and administrators may
+	// read it, which is signalled per request with ReplyVisible.
+	Reply        string     `gorm:"type:text" json:"-"`
+	RepliedAt    *time.Time `json:"-"`
+	ReplyVisible bool       `gorm:"-" json:"-"`
 }
 
 func (q Question) MarshalJSON() ([]byte, error) {
 	type questionAlias Question
 	copy := q
-	var publicUID *string
-	if copy.IsRealName && copy.BilibiliUID != nil {
-		uid := strconv.FormatInt(*copy.BilibiliUID, 10)
-		publicUID = &uid
-	} else {
+	// The internal account id must never be exposed: bilibili_uid is only used
+	// for reply ownership. Real-name posts show their self-declared display id.
+	if !copy.IsRealName {
 		copy.BilibiliName = ""
 		copy.BilibiliAvatar = ""
+		copy.DisplayID = ""
+		copy.DisplayIsBilibiliUID = nil
+	}
+	var reply *string
+	var repliedAt *time.Time
+	var hasAuthor *bool
+	if copy.ReplyVisible {
+		hasAuthorValue := copy.BilibiliUID != nil
+		hasAuthor = &hasAuthorValue
+		if copy.Reply != "" {
+			value := copy.Reply
+			reply = &value
+			repliedAt = copy.RepliedAt
+		}
 	}
 	return json.Marshal(struct {
 		*questionAlias
-		BilibiliUID *string `json:"bilibili_uid,omitempty"`
+		Reply     *string    `json:"reply,omitempty"`
+		RepliedAt *time.Time `json:"replied_at,omitempty"`
+		HasAuthor *bool      `json:"has_author,omitempty"`
 	}{
 		questionAlias: (*questionAlias)(&copy),
-		BilibiliUID:   publicUID,
+		Reply:         reply,
+		RepliedAt:     repliedAt,
+		HasAuthor:     hasAuthor,
 	})
 }
 
 type User struct {
-	BilibiliUID    int64     `gorm:"primaryKey;autoIncrement:false" json:"bilibili_uid"`
-	Username       string    `gorm:"size:32;uniqueIndex;not null" json:"username"`
-	PasswordHash   string    `gorm:"size:255;not null" json:"-"`
-	BilibiliName   string    `gorm:"size:255;not null" json:"bilibili_name"`
-	BilibiliAvatar string    `gorm:"size:1024;not null" json:"bilibili_avatar"`
-	VerifiedAt     time.Time `gorm:"not null" json:"verified_at"`
-	IsDisabled     bool      `gorm:"index;not null;default:false" json:"is_disabled"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
-}
-
-type BilibiliVerificationAccount struct {
-	BaseModel
-	BilibiliUID      int64      `gorm:"uniqueIndex;not null" json:"bilibili_uid"`
-	EncryptedCookie  string     `gorm:"type:text;not null" json:"-"`
-	LastCheckedAt    *time.Time `json:"last_checked_at"`
-	LastSuccessfulAt *time.Time `json:"last_successful_at"`
-	LastError        string     `gorm:"type:text" json:"last_error"`
-}
-
-const (
-	VerificationPending  = "pending"
-	VerificationVerified = "verified"
-	VerificationExpired  = "expired"
-	VerificationConsumed = "consumed"
-)
-
-type BilibiliVerificationRequest struct {
-	BaseModel
-	BilibiliUID       int64      `gorm:"index;not null" json:"bilibili_uid"`
-	CredentialHash    string     `gorm:"size:64;not null" json:"-"`
-	Status            string     `gorm:"size:16;index;not null" json:"status"`
-	RequestedAt       time.Time  `gorm:"index;not null" json:"requested_at"`
-	ExpiresAt         time.Time  `gorm:"index;not null" json:"expires_at"`
-	FollowedAt        *time.Time `json:"followed_at"`
-	BilibiliName      string     `gorm:"size:255" json:"bilibili_name"`
-	BilibiliAvatar    string     `gorm:"size:1024" json:"bilibili_avatar"`
-	VerifiedAt        *time.Time `json:"verified_at"`
-	ConfirmationUntil *time.Time `gorm:"index" json:"confirmation_until"`
-	ConsumedAt        *time.Time `json:"consumed_at"`
+	// BilibiliUID is the internal account id. It is no longer a B 站 uid: local
+	// accounts get a generated one and the column name is kept for compatibility
+	// with existing databases.
+	BilibiliUID    int64  `gorm:"primaryKey;autoIncrement:false" json:"-"`
+	Username       string `gorm:"size:32;uniqueIndex;not null" json:"username"`
+	PasswordHash   string `gorm:"size:255;not null" json:"-"`
+	BilibiliName   string `gorm:"size:255;not null" json:"bilibili_name"`
+	BilibiliAvatar string `gorm:"size:1024;not null" json:"bilibili_avatar"`
+	// DisplayID is the public id the member sets for themselves.
+	DisplayID            string    `gorm:"size:64" json:"display_id"`
+	DisplayIsBilibiliUID *bool     `json:"display_is_bilibili_uid,omitempty"`
+	VerifiedAt           time.Time `gorm:"not null" json:"verified_at"`
+	IsDisabled           bool      `gorm:"index;not null;default:false" json:"is_disabled"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type LikeRecord struct {

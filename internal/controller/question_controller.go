@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sse"
@@ -51,6 +52,9 @@ type QuestionController struct {
 	// WebSocket clients
 	wsClients      map[*websocket.Conn]bool
 	wsClientsMutex sync.Mutex
+	// WebSocket clients that are signed in members, used to deliver private
+	// messages (question replies) to their author only.
+	wsMembers map[*websocket.Conn]int64
 }
 
 var wsUpgrader = websocket.Upgrader{
@@ -64,6 +68,7 @@ func NewQuestionController() *QuestionController {
 		eventChan: make(chan SSEvent),
 		clients:   make(map[chan SSEvent]bool),
 		wsClients: make(map[*websocket.Conn]bool),
+		wsMembers: make(map[*websocket.Conn]int64),
 	}
 	// Start broadcast goroutine
 	go controller.broadcast()
@@ -117,6 +122,54 @@ type QuestionRequest struct {
 	Archive  bool   `form:"archive"`
 	Publish  bool   `form:"publish"`
 	Spam     bool   `form:"is_spam"`
+}
+
+// applyCurrentAuthorInfo replaces the author snapshot stored on a question with
+// the account's current profile, so that changing the display id or the avatar
+// is reflected on questions submitted earlier. Questions whose account no longer
+// exists keep the snapshot taken at submission time.
+func applyCurrentAuthorInfo(questions []database.Question) {
+	if len(questions) == 0 {
+		return
+	}
+	ids := make([]int64, 0, len(questions))
+	seen := make(map[int64]struct{}, len(questions))
+	for _, question := range questions {
+		if !question.IsRealName || question.BilibiliUID == nil {
+			continue
+		}
+		if _, ok := seen[*question.BilibiliUID]; ok {
+			continue
+		}
+		seen[*question.BilibiliUID] = struct{}{}
+		ids = append(ids, *question.BilibiliUID)
+	}
+	if len(ids) == 0 {
+		return
+	}
+	var users []database.User
+	if err := database.DB.Where("bilibili_uid IN ?", ids).Find(&users).Error; err != nil {
+		log.Errorf("failed to load author profiles for questions: %v", err)
+		return
+	}
+	byID := make(map[int64]database.User, len(users))
+	for _, user := range users {
+		byID[user.BilibiliUID] = user
+	}
+	for index := range questions {
+		question := &questions[index]
+		if !question.IsRealName || question.BilibiliUID == nil {
+			continue
+		}
+		user, ok := byID[*question.BilibiliUID]
+		if !ok {
+			continue
+		}
+		question.BilibiliName = user.BilibiliName
+		question.BilibiliAvatar = user.BilibiliAvatar
+		question.DisplayID = user.DisplayID
+		question.DisplayIsBilibiliUID = user.DisplayIsBilibiliUID
+	}
 }
 
 type QuestionModifyRequest struct {
@@ -185,6 +238,21 @@ func (*QuestionController) Get(c *gin.Context) {
 		Fail(c, 500, "获取提问失败")
 		return
 	}
+	// Replies are private: administrators see every reply, members only see the
+	// replies to the questions they asked. Everyone else sees no reply at all.
+	applyCurrentAuthorInfo(questionList)
+	if c.GetBool("authed") {
+		for index := range questionList {
+			questionList[index].ReplyVisible = true
+		}
+	} else if member, ok := currentMember(c); ok {
+		for index := range questionList {
+			uid := questionList[index].BilibiliUID
+			if uid != nil && *uid == member.BilibiliUID {
+				questionList[index].ReplyVisible = true
+			}
+		}
+	}
 	Success(c, gin.H{
 		"questions": questionList,
 		"total":     total,
@@ -230,6 +298,118 @@ func (this *QuestionController) Put(c *gin.Context) {
 	Success(c, nil)
 }
 
+type QuestionReplyRequest struct {
+	Reply string `json:"reply"`
+}
+
+const maxReplyLength = 2000
+
+// PutReply stores the administrator's answer to a question. The reply is only
+// readable by the question author (and by administrators), see Get/MyQuestions.
+func (this *QuestionController) PutReply(c *gin.Context) {
+	var request QuestionReplyRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		Fail(c, 400, "请求错误")
+		return
+	}
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		Fail(c, 400, "请求错误")
+		return
+	}
+	reply := strings.TrimSpace(request.Reply)
+	if utf8.RuneCountInString(reply) > maxReplyLength {
+		Fail(c, 400, "回复内容过长")
+		return
+	}
+	var q database.Question
+	if err := database.DB.First(&q, id).Error; err != nil || q.ID == 0 {
+		Fail(c, 404, "提问不存在")
+		return
+	}
+	if reply == "" {
+		q.Reply = ""
+		q.RepliedAt = nil
+	} else {
+		now := time.Now().UTC()
+		q.Reply = reply
+		q.RepliedAt = &now
+	}
+	if err := database.DB.Model(&database.Question{}).Where("id = ?", q.ID).Updates(map[string]any{
+		"reply":      q.Reply,
+		"replied_at": q.RepliedAt,
+	}).Error; err != nil {
+		log.Error(err)
+		Fail(c, 500, "保存回复失败")
+		return
+	}
+	this.notifyReply(q)
+	Success(c, gin.H{
+		"id":         q.ID,
+		"reply":      q.Reply,
+		"replied_at": q.RepliedAt,
+	})
+}
+
+// notifyReply pushes a private message to the author's open WebSocket
+// connections. Nothing is broadcast to other visitors.
+func (this *QuestionController) notifyReply(question database.Question) {
+	if question.BilibiliUID == nil || question.Reply == "" {
+		return
+	}
+	payload, err := json.Marshal(map[string]any{
+		"type": "reply",
+		"data": gin.H{
+			"question_id": question.ID,
+			"reply":       question.Reply,
+			"replied_at":  question.RepliedAt,
+		},
+	})
+	if err != nil {
+		log.Error("Failed to marshal reply event:", err)
+		return
+	}
+	this.wsClientsMutex.Lock()
+	defer this.wsClientsMutex.Unlock()
+	for conn, uid := range this.wsMembers {
+		if uid != *question.BilibiliUID {
+			continue
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+			log.Error("Failed to send reply message:", err)
+			conn.Close()
+			delete(this.wsMembers, conn)
+			delete(this.wsClients, conn)
+		}
+	}
+}
+
+// MyQuestions returns the questions submitted by the signed-in member together
+// with the administrator replies, which only they may read.
+func (*QuestionController) MyQuestions(c *gin.Context) {
+	member, ok := currentMember(c)
+	if !ok {
+		Fail(c, 408, "请先登录")
+		return
+	}
+	var questions []database.Question
+	err := database.DB.Preload(clause.Associations).
+		Where("bilibili_uid = ?", member.BilibiliUID).
+		Order("id desc").
+		Limit(100).
+		Find(&questions).Error
+	if err != nil {
+		log.Error(err)
+		Fail(c, 500, "获取提问失败")
+		return
+	}
+	for index := range questions {
+		questions[index].ReplyVisible = true
+	}
+	applyCurrentAuthorInfo(questions)
+	Success(c, gin.H{"questions": questions})
+}
+
 func (*QuestionController) Post(c *gin.Context) {
 	var config database.Config
 	if err := database.DB.First(&config).Error; err != nil {
@@ -261,6 +441,8 @@ func (*QuestionController) Post(c *gin.Context) {
 		q.IsRealName = true
 		q.BilibiliName = member.BilibiliName
 		q.BilibiliAvatar = member.BilibiliAvatar
+		q.DisplayID = member.DisplayID
+		q.DisplayIsBilibiliUID = member.DisplayIsBilibiliUID
 	}
 	q.TagID = int(tag.ID)
 	q.Content = strings.Trim(c.PostForm("content"), " \r\n\t")
@@ -587,9 +769,19 @@ func (this *QuestionController) WebSocket(c *gin.Context) {
 	// Generate a unique client ID
 	clientID := fmt.Sprintf("%d", time.Now().UnixNano())
 
+	// Remember the signed-in member, if any, so private messages (question
+	// replies) can be delivered to this connection only.
+	memberUID := int64(0)
+	if member, ok := currentMember(c); ok {
+		memberUID = member.BilibiliUID
+	}
+
 	// Add client to the connection manager
 	this.wsClientsMutex.Lock()
 	this.wsClients[conn] = true
+	if memberUID != 0 {
+		this.wsMembers[conn] = memberUID
+	}
 	this.wsClientsMutex.Unlock()
 
 	log.Info("WebSocket client connected:", clientID)
@@ -605,6 +797,7 @@ func (this *QuestionController) WebSocket(c *gin.Context) {
 
 			this.wsClientsMutex.Lock()
 			delete(this.wsClients, conn)
+			delete(this.wsMembers, conn)
 			this.wsClientsMutex.Unlock()
 			conn.Close()
 			log.Info("WebSocket client disconnected:", clientID)

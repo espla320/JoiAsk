@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Github, LogOut, UserRound } from 'lucide-react';
 import { useAccountAuth } from '@/lib/account-auth';
+import { MyQuestions } from '@/components/my-questions';
+import { AccountProfile } from '@/components/account-profile';
 
 const NAV_ROUTES = [
   { label: '提问', path: '/' },
@@ -47,6 +49,8 @@ export function Navbar() {
       <div className="flex min-w-0 items-center gap-2">
         {!loading && user ? (
           <>
+            <AccountProfile />
+            <MyQuestions />
             <div className="hidden min-w-0 items-center gap-2 text-primary-foreground sm:flex">
               <div className="h-8 w-8 shrink-0 rounded-full bg-cover bg-center" style={{ backgroundImage: `url(${user.bilibili_avatar})` }} />
               <span className="max-w-28 truncate text-sm">{user.bilibili_name}</span>

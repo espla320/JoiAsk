@@ -1,9 +1,6 @@
 package controller
 
 import (
-	"context"
-	"joiask-backend/internal/avatar"
-	"joiask-backend/internal/bilibili"
 	"joiask-backend/internal/database"
 	"strconv"
 	"strings"
@@ -16,14 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type BilibiliProfileClient interface {
-	Profile(context.Context, int64) (bilibili.Profile, error)
-}
-
-type MemberController struct {
-	Client        BilibiliProfileClient
-	AvatarStorage AvatarStorage
-}
+type MemberController struct{}
 
 type memberListRequest struct {
 	Page     int `form:"page"`
@@ -34,10 +24,14 @@ type memberStatusRequest struct {
 	IsDisabled *bool `json:"is_disabled"`
 }
 
+type memberPasswordRequest struct {
+	Password string `json:"password"`
+}
+
 type memberCreateRequest struct {
-	BilibiliUID string `json:"bilibili_uid"`
-	Username    string `json:"username"`
-	Password    string `json:"password"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	DisplayID string `json:"display_id"`
 }
 
 func (*MemberController) Get(c *gin.Context) {
@@ -60,15 +54,10 @@ func (*MemberController) Get(c *gin.Context) {
 	Success(c, gin.H{"users": items, "total": total, "page": page, "page_size": pageSize})
 }
 
-func (ctl *MemberController) Post(c *gin.Context) {
+func (*MemberController) Post(c *gin.Context) {
 	var body memberCreateRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		Fail(c, 400, "请求无效")
-		return
-	}
-	uid, _, err := normalizeBilibiliUID(body.BilibiliUID)
-	if err != nil {
-		Fail(c, 400, err.Error())
 		return
 	}
 	username := strings.TrimSpace(body.Username)
@@ -80,27 +69,12 @@ func (ctl *MemberController) Post(c *gin.Context) {
 		Fail(c, 400, "密码长度需为 8 至 72 个字符")
 		return
 	}
-	if ctl.Client == nil {
-		Fail(c, 503, "B 站用户信息服务暂不可用")
-		return
-	}
-	profileContext, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
-	defer cancel()
-	profile, err := ctl.Client.Profile(profileContext, uid)
-	if err != nil {
-		log.Warnf("failed to fetch Bilibili profile for manual member uid %d: %v", uid, err)
-		Fail(c, 400, "获取 B 站账号信息失败，请确认 UID 有效")
+	displayID := strings.TrimSpace(body.DisplayID)
+	if utf8.RuneCountInString(displayID) > 32 || strings.IndexFunc(displayID, unicode.IsSpace) >= 0 {
+		Fail(c, 400, "展示 ID 最多 32 个字符且不能包含空格")
 		return
 	}
 	var count int64
-	if err := database.DB.Model(&database.User{}).Where("bilibili_uid = ?", uid).Count(&count).Error; err != nil {
-		Fail(c, 500, "检查用户失败")
-		return
-	}
-	if count > 0 {
-		Fail(c, 409, "该 B 站 UID 已注册")
-		return
-	}
 	if err := database.DB.Model(&database.User{}).Where("username = ?", username).Count(&count).Error; err != nil {
 		Fail(c, 500, "检查用户失败")
 		return
@@ -115,28 +89,33 @@ func (ctl *MemberController) Post(c *gin.Context) {
 		return
 	}
 	now := time.Now().UTC()
-	avatarStorage := ctl.AvatarStorage
-	if avatarStorage == nil {
-		avatarStorage = avatar.NewStore()
-	}
-	storedAvatar := ""
-	if profile.Face != "" {
-		storedAvatar, err = avatarStorage.Save(profileContext, uid, profile.Face)
+	var user database.User
+	for attempt := 0; attempt < 5; attempt++ {
+		accountID, err := nextAccountID()
 		if err != nil {
-			Fail(c, 502, "保存 B 站头像失败，请重试")
+			Fail(c, 500, "创建用户失败")
+			return
+		}
+		user = database.User{
+			BilibiliUID:  accountID,
+			Username:     username,
+			PasswordHash: string(passwordHash),
+			BilibiliName: username,
+			DisplayID:    displayID,
+			VerifiedAt:   now,
+		}
+		err = database.DB.Create(&user).Error
+		if err == nil {
+			break
+		}
+		if !isUniqueViolation(err) {
+			log.Error(err)
+			Fail(c, 500, "创建用户失败")
 			return
 		}
 	}
-	user := database.User{
-		BilibiliUID:    uid,
-		Username:       username,
-		PasswordHash:   string(passwordHash),
-		BilibiliName:   profile.Name,
-		BilibiliAvatar: storedAvatar,
-		VerifiedAt:     now,
-	}
-	if err := database.DB.Create(&user).Error; err != nil {
-		Fail(c, 409, "创建失败，该 UID 或登录名可能已被使用")
+	if user.BilibiliUID == 0 {
+		Fail(c, 409, "创建失败，该登录名可能已被使用")
 		return
 	}
 	Success(c, publicUser(user))
@@ -145,7 +124,7 @@ func (ctl *MemberController) Post(c *gin.Context) {
 func (*MemberController) Put(c *gin.Context) {
 	uid, err := strconv.ParseInt(c.Param("uid"), 10, 64)
 	if err != nil || uid <= 0 {
-		Fail(c, 400, "B 站 UID 无效")
+		Fail(c, 400, "用户 ID 无效")
 		return
 	}
 	var body memberStatusRequest
@@ -169,7 +148,7 @@ func (*MemberController) Put(c *gin.Context) {
 func (*MemberController) Delete(c *gin.Context) {
 	uid, err := strconv.ParseInt(c.Param("uid"), 10, 64)
 	if err != nil || uid <= 0 {
-		Fail(c, 400, "B 站 UID 无效")
+		Fail(c, 400, "用户 ID 无效")
 		return
 	}
 	var user database.User
@@ -179,6 +158,42 @@ func (*MemberController) Delete(c *gin.Context) {
 	}
 	if err := database.DB.Delete(&user).Error; err != nil {
 		Fail(c, 500, "删除用户失败")
+		return
+	}
+	Success(c, nil)
+}
+
+// ResetPassword lets an administrator set a new password for a member, for
+// example when the member forgot it.
+func (*MemberController) ResetPassword(c *gin.Context) {
+	uid, err := strconv.ParseInt(c.Param("uid"), 10, 64)
+	if err != nil || uid <= 0 {
+		Fail(c, 400, "用户 ID 无效")
+		return
+	}
+	var body memberPasswordRequest
+	if err := c.ShouldBindJSON(&body); err != nil {
+		Fail(c, 400, "请求无效")
+		return
+	}
+	if utf8.RuneCountInString(body.Password) < 8 || len([]byte(body.Password)) > 72 {
+		Fail(c, 400, "密码长度需为 8 至 72 个字符")
+		return
+	}
+	var user database.User
+	if err := database.DB.First(&user, uid).Error; err != nil {
+		Fail(c, 404, "用户不存在")
+		return
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	if err != nil {
+		Fail(c, 500, "重置密码失败")
+		return
+	}
+	if err := database.DB.Model(&database.User{}).
+		Where("bilibili_uid = ?", uid).
+		Update("password_hash", string(passwordHash)).Error; err != nil {
+		Fail(c, 500, "重置密码失败")
 		return
 	}
 	Success(c, nil)

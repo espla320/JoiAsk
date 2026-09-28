@@ -39,8 +39,6 @@ func Init() {
 func initializeDB() {
 	err := DB.AutoMigrate(
 		&User{},
-		&BilibiliVerificationAccount{},
-		&BilibiliVerificationRequest{},
 		&Question{},
 		&LikeRecord{},
 		&Admin{},

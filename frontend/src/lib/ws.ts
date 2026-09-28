@@ -13,19 +13,30 @@ export interface WSArchiveData {
   Data: number;
 }
 
+export interface WSReplyData {
+  type: 'reply';
+  data: {
+    question_id: number;
+    reply: string;
+    replied_at: string;
+  };
+}
+
 export type WSData = WSEmojiData | WSArchiveData;
 
 type EmojiCallback = (cardId: number, emojis: EmojiData[]) => void;
 type ArchiveCallback = (cardId: number) => void;
 type CursorCallback = (clientId: string, cardId: number, x: number, y: number) => void;
 type CursorLeaveCallback = (clientId: string) => void;
+type ReplyCallback = (questionId: number, reply: string, repliedAt: string) => void;
 
 interface Subscriber {
   id: string;
-  onEmoji: EmojiCallback;
-  onArchive: ArchiveCallback;
+  onEmoji?: EmojiCallback;
+  onArchive?: ArchiveCallback;
   onCursor?: CursorCallback;
   onCursorLeave?: CursorLeaveCallback;
+  onReply?: ReplyCallback;
 }
 
 // Singleton WebSocket manager
@@ -79,12 +90,20 @@ class WSManager {
           return;
         }
 
+        // Handle private reply notifications (only sent to the question author)
+        if (data.type === 'reply' && data.data) {
+          this.subscribers.forEach(sub =>
+            sub.onReply?.(data.data.question_id, data.data.reply, data.data.replied_at)
+          );
+          return;
+        }
+
         // Handle emoji/archive events
         const wsData = data as WSData;
         if (wsData.Type === 1) {
-          this.subscribers.forEach(sub => sub.onEmoji(wsData.Data.card_id, wsData.Data.emojis));
+          this.subscribers.forEach(sub => sub.onEmoji?.(wsData.Data.card_id, wsData.Data.emojis));
         } else if (wsData.Type === 2) {
-          this.subscribers.forEach(sub => sub.onArchive(wsData.Data));
+          this.subscribers.forEach(sub => sub.onArchive?.(wsData.Data));
         }
       } catch (e) {
         console.error('[WS] Failed to parse message:', e);

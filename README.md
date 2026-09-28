@@ -20,9 +20,15 @@
         "host": "0.0.0.0",
         "port": 8080
     },
+    "security": {
+        "session_secret": "replace-with-a-long-random-secret",
+        "secure_cookie": true
+    },
     "storage_type": "local"
 }
 ```
+
+> `security.session_secret` 用于签名登录状态，正式部署请改成一段随机字符串（至少 32 个字符）。
 
 #### 2. 启动容器
 
@@ -127,23 +133,27 @@ SQLite 是单文件数据库，无需额外安装数据库服务。
 }
 ```
 
-### 账号与 B 站验证安全配置
+### 账号与登录
 
-启用 B 站关注验证前，请为 Session 签名和 B 站 Cookie 加密分别设置独立的随机密钥（建议至少 32 个字符）：
+注册只需要登录名和密码，不涉及任何第三方账号验证：
 
 ```json
 {
     "security": {
         "session_secret": "replace-with-a-long-random-secret",
-        "bilibili_cookie_key": "replace-with-an-independent-long-random-key",
         "secure_cookie": true
     }
 }
 ```
 
 - HTTPS 部署应将 `secure_cookie` 设为 `true`；本地 HTTP 开发保持 `false`。
-- 未配置 `bilibili_cookie_key` 时，已有用户仍可登录，但不能配置验证账号或发起新注册验证。
 - 可通过 `JOIASK_CONFIG=/path/to/config.json` 指定配置文件；未设置时仍读取 `./config/config.json`。
+
+登录后可以在导航栏的「我的资料」里设置**展示 ID** 和**头像**。投稿时勾选「实名投稿」，提问下方就会显示头像、登录名和展示 ID（展示 ID 是纯数字时会自动链接到 B 站空间，方便访客找到你）。
+
+无论是否勾选实名，只要是用登录账号提交的提问，管理员的回复都会**只送达该账号**：网页右下角会弹出提示、「我的提问」入口会出现未读角标，回复内容不会出现在公开页面上。
+
+如果需要允许管理员手动建号，后台「注册用户」页可以用登录名和密码直接创建账号。
 
 ### 图片存储配置
 
