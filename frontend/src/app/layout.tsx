@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JoiAsk 提问箱",
-  description: "JoiAsk 提问箱",
+  title: "天使的提问箱",
+  description: "天使的提问箱",
   icons: {
     icon: "/iris-icon.png",
   },
