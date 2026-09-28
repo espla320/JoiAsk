@@ -35,7 +35,11 @@ type Question struct {
 	BilibiliAvatar string `gorm:"size:1024" json:"bilibili_avatar,omitempty"`
 	// DisplayID is the author's self-declared public id, shown for real-name posts.
 	DisplayID string `gorm:"size:64" json:"display_id,omitempty"`
-	Emojis    string `json:"emojis"`
+	// DisplayIsBilibiliUID marks DisplayID as a B 站 uid: such posts link to the
+	// author's space. A nil value means "unknown" and falls back to the numeric
+	// heuristic, which keeps questions written before this field existed working.
+	DisplayIsBilibiliUID *bool  `json:"display_is_bilibili_uid,omitempty"`
+	Emojis               string `json:"emojis"`
 	// Reply is the administrator's answer to this question. It is never part of
 	// the default JSON payload: only the question author and administrators may
 	// read it, which is signalled per request with ReplyVisible.
@@ -53,6 +57,7 @@ func (q Question) MarshalJSON() ([]byte, error) {
 		copy.BilibiliName = ""
 		copy.BilibiliAvatar = ""
 		copy.DisplayID = ""
+		copy.DisplayIsBilibiliUID = nil
 	}
 	var reply *string
 	var repliedAt *time.Time
@@ -89,11 +94,12 @@ type User struct {
 	BilibiliName   string `gorm:"size:255;not null" json:"bilibili_name"`
 	BilibiliAvatar string `gorm:"size:1024;not null" json:"bilibili_avatar"`
 	// DisplayID is the public id the member sets for themselves.
-	DisplayID  string    `gorm:"size:64" json:"display_id"`
-	VerifiedAt time.Time `gorm:"not null" json:"verified_at"`
-	IsDisabled bool      `gorm:"index;not null;default:false" json:"is_disabled"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	DisplayID            string    `gorm:"size:64" json:"display_id"`
+	DisplayIsBilibiliUID *bool     `json:"display_is_bilibili_uid,omitempty"`
+	VerifiedAt           time.Time `gorm:"not null" json:"verified_at"`
+	IsDisabled           bool      `gorm:"index;not null;default:false" json:"is_disabled"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 type LikeRecord struct {

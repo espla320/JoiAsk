@@ -30,6 +30,7 @@ export interface Question {
   is_spam: boolean;
   is_real_name: boolean;
   display_id?: string;
+  display_is_bilibili_uid?: boolean;
   bilibili_name?: string;
   bilibili_avatar?: string;
   emojis: string;

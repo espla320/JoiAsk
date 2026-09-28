@@ -2,7 +2,9 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"io"
+	"joiask-backend/internal/bilibili"
 	"joiask-backend/internal/database"
 	"joiask-backend/internal/storage"
 	"joiask-backend/pkg/util"
@@ -25,7 +27,30 @@ const memberSessionKey = "member_bilibili_uid"
 // maxAvatarSize limits an uploaded avatar to 5 MB.
 const maxAvatarSize = 5 << 20
 
-type AccountController struct{}
+// BilibiliClient fetches public B 站 profiles and avatars.
+type BilibiliClient interface {
+	Profile(ctx context.Context, uid int64) (bilibili.Profile, error)
+	Avatar(ctx context.Context, faceURL string) ([]byte, error)
+}
+
+type AccountController struct {
+	Bilibili BilibiliClient
+	Storage  storage.Storage
+}
+
+func (ctl *AccountController) bilibili() BilibiliClient {
+	if ctl.Bilibili != nil {
+		return ctl.Bilibili
+	}
+	return bilibili.NewClient()
+}
+
+func (ctl *AccountController) storage() storage.Storage {
+	if ctl.Storage != nil {
+		return ctl.Storage
+	}
+	return storage.Get()
+}
 
 type accountLoginRequest struct {
 	Username string `json:"username"`
@@ -39,15 +64,16 @@ type accountRegisterRequest struct {
 
 func publicUser(user database.User) gin.H {
 	return gin.H{
-		"username":        user.Username,
-		"bilibili_uid":    strconv.FormatInt(user.BilibiliUID, 10),
-		"display_id":      user.DisplayID,
-		"bilibili_name":   user.BilibiliName,
-		"bilibili_avatar": user.BilibiliAvatar,
-		"verified_at":     user.VerifiedAt,
-		"is_disabled":     user.IsDisabled,
-		"created_at":      user.CreatedAt,
-		"updated_at":      user.UpdatedAt,
+		"username":                user.Username,
+		"bilibili_uid":            strconv.FormatInt(user.BilibiliUID, 10),
+		"display_id":              user.DisplayID,
+		"display_is_bilibili_uid": user.DisplayIsBilibiliUID,
+		"bilibili_name":           user.BilibiliName,
+		"bilibili_avatar":         user.BilibiliAvatar,
+		"verified_at":             user.VerifiedAt,
+		"is_disabled":             user.IsDisabled,
+		"created_at":              user.CreatedAt,
+		"updated_at":              user.UpdatedAt,
 	}
 }
 
@@ -138,7 +164,8 @@ func isUniqueViolation(err error) bool {
 }
 
 type accountProfileRequest struct {
-	DisplayID string `json:"display_id"`
+	DisplayID            string `json:"display_id"`
+	DisplayIsBilibiliUID bool   `json:"display_is_bilibili_uid"`
 }
 
 type accountPasswordRequest struct {
@@ -202,16 +229,38 @@ func (*AccountController) UpdateProfile(c *gin.Context) {
 		Fail(c, 400, "展示 ID 不能包含空格")
 		return
 	}
-	if err := database.DB.Model(&database.User{}).Where("bilibili_uid = ?", user.BilibiliUID).Update("display_id", displayID).Error; err != nil {
+	if body.DisplayIsBilibiliUID && !isNumericID(displayID) {
+		Fail(c, 400, "勾选 B 站 UID 时展示 ID 必须为纯数字")
+		return
+	}
+	if err := database.DB.Model(&database.User{}).Where("bilibili_uid = ?", user.BilibiliUID).Updates(map[string]any{
+		"display_id":              displayID,
+		"display_is_bilibili_uid": body.DisplayIsBilibiliUID,
+	}).Error; err != nil {
 		Fail(c, 500, "保存失败")
 		return
 	}
 	user.DisplayID = displayID
+	isBilibiliUID := body.DisplayIsBilibiliUID
+	user.DisplayIsBilibiliUID = &isBilibiliUID
 	Success(c, publicUser(user))
 }
 
+// isNumericID reports whether the value only contains ASCII digits.
+func isNumericID(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, character := range value {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // UploadAvatar stores a member uploaded avatar image and remembers its URL.
-func (*AccountController) UploadAvatar(c *gin.Context) {
+func (ctl *AccountController) UploadAvatar(c *gin.Context) {
 	user, ok := currentMember(c)
 	if !ok {
 		Fail(c, 408, "请先登录")
@@ -255,21 +304,84 @@ func (*AccountController) UploadAvatar(c *gin.Context) {
 		extension = ".jpg"
 	}
 	filename := "avatar-" + util.Md5v(string(content)) + extension
-	storedURL, err := storage.Get().Upload(filename, bytes.NewReader(content))
+	storedURL, err := ctl.storeAvatar(user.BilibiliUID, filename, content)
 	if err != nil {
 		log.Errorf("failed to store avatar for uid %d: %v", user.BilibiliUID, err)
 		Fail(c, 500, "保存头像失败")
 		return
 	}
-	if !strings.Contains(storedURL, "://") && !strings.HasPrefix(storedURL, "/") {
-		storedURL = "/" + storedURL
+	user.BilibiliAvatar = storedURL
+	Success(c, publicUser(user))
+}
+
+// FetchBilibiliAvatar downloads the avatar of a B 站 uid and stores it as the
+// member's avatar.
+func (ctl *AccountController) FetchBilibiliAvatar(c *gin.Context) {
+	user, ok := currentMember(c)
+	if !ok {
+		Fail(c, 408, "请先登录")
+		return
 	}
-	if err := database.DB.Model(&database.User{}).Where("bilibili_uid = ?", user.BilibiliUID).Update("bilibili_avatar", storedURL).Error; err != nil {
+	var body struct {
+		BilibiliUID string `json:"bilibili_uid"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		Fail(c, 400, "请求无效")
+		return
+	}
+	uid, err := strconv.ParseInt(strings.TrimSpace(body.BilibiliUID), 10, 64)
+	if err != nil || uid <= 0 {
+		Fail(c, 400, "请填写有效的 B 站 UID")
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
+	defer cancel()
+	profile, err := ctl.bilibili().Profile(ctx, uid)
+	if err != nil {
+		Fail(c, 400, err.Error())
+		return
+	}
+	content, err := ctl.bilibili().Avatar(ctx, profile.FaceURL)
+	if err != nil {
+		Fail(c, 502, err.Error())
+		return
+	}
+	contentType := http.DetectContentType(content)
+	extensions, _ := mime.ExtensionsByType(contentType)
+	extension := ".png"
+	if len(extensions) > 0 {
+		extension = extensions[0]
+	}
+	if contentType == "image/jpeg" {
+		extension = ".jpg"
+	}
+	filename := "avatar-bilibili-" + util.Md5v(string(content)) + extension
+	storedURL, err := ctl.storeAvatar(user.BilibiliUID, filename, content)
+	if err != nil {
+		log.Errorf("failed to store avatar for uid %d: %v", user.BilibiliUID, err)
 		Fail(c, 500, "保存头像失败")
 		return
 	}
 	user.BilibiliAvatar = storedURL
-	Success(c, publicUser(user))
+	Success(c, gin.H{
+		"profile": publicUser(user),
+		"name":    profile.Name,
+	})
+}
+
+// storeAvatar saves the image and points the member's avatar at it.
+func (ctl *AccountController) storeAvatar(userID int64, filename string, content []byte) (string, error) {
+	storedURL, err := ctl.storage().Upload(filename, bytes.NewReader(content))
+	if err != nil {
+		return "", err
+	}
+	if !strings.Contains(storedURL, "://") && !strings.HasPrefix(storedURL, "/") {
+		storedURL = "/" + storedURL
+	}
+	if err := database.DB.Model(&database.User{}).Where("bilibili_uid = ?", userID).Update("bilibili_avatar", storedURL).Error; err != nil {
+		return "", err
+	}
+	return storedURL, nil
 }
 
 func (*AccountController) Login(c *gin.Context) {

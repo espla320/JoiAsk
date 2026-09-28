@@ -168,6 +168,7 @@ func applyCurrentAuthorInfo(questions []database.Question) {
 		question.BilibiliName = user.BilibiliName
 		question.BilibiliAvatar = user.BilibiliAvatar
 		question.DisplayID = user.DisplayID
+		question.DisplayIsBilibiliUID = user.DisplayIsBilibiliUID
 	}
 }
 
@@ -441,6 +442,7 @@ func (*QuestionController) Post(c *gin.Context) {
 		q.BilibiliName = member.BilibiliName
 		q.BilibiliAvatar = member.BilibiliAvatar
 		q.DisplayID = member.DisplayID
+		q.DisplayIsBilibiliUID = member.DisplayIsBilibiliUID
 	}
 	q.TagID = int(tag.ID)
 	q.Content = strings.Trim(c.PostForm("content"), " \r\n\t")

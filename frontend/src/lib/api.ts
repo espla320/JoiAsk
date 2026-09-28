@@ -28,6 +28,7 @@ export interface Question {
   is_spam: boolean;
   is_real_name: boolean;
   display_id?: string;
+  display_is_bilibili_uid?: boolean;
   bilibili_name?: string;
   bilibili_avatar?: string;
   emojis: string;
@@ -48,6 +49,7 @@ export interface AccountUser {
   username: string;
   bilibili_uid: string;
   display_id: string;
+  display_is_bilibili_uid?: boolean;
   bilibili_name: string;
   bilibili_avatar: string;
   verified_at: string;
@@ -115,12 +117,12 @@ export async function registerAccount(username: string, password: string): Promi
   return res.json();
 }
 
-export async function updateAccountProfile(displayId: string): Promise<ApiResponse<AccountUser>> {
+export async function updateAccountProfile(displayId: string, isBilibiliUid: boolean): Promise<ApiResponse<AccountUser>> {
   const res = await fetch(`${API_BASE}/account/profile`, {
     method: 'PUT',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ display_id: displayId }),
+    body: JSON.stringify({ display_id: displayId, display_is_bilibili_uid: isBilibiliUid }),
   });
   return res.json();
 }
@@ -142,6 +144,16 @@ export async function changeAccountPassword(oldPassword: string, newPassword: st
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  });
+  return res.json();
+}
+
+export async function fetchBilibiliAvatar(bilibiliUid: string): Promise<ApiResponse<{ profile: AccountUser; name: string }>> {
+  const res = await fetch(`${API_BASE}/account/avatar/bilibili`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bilibili_uid: bilibiliUid }),
   });
   return res.json();
 }

@@ -2,11 +2,15 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"io"
+	"joiask-backend/internal/bilibili"
 	"joiask-backend/internal/database"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gin-contrib/sessions"
@@ -209,6 +213,138 @@ type questionAuthorView struct {
 	DisplayID string `json:"display_id"`
 	Avatar    string `json:"bilibili_avatar"`
 	Name      string `json:"bilibili_name"`
+}
+
+type fakeAvatarImageStorage struct {
+	uploaded map[string][]byte
+}
+
+func (s *fakeAvatarImageStorage) Upload(filename string, content *bytes.Reader) (string, error) {
+	data, err := io.ReadAll(content)
+	if err != nil {
+		return "", err
+	}
+	if s.uploaded == nil {
+		s.uploaded = map[string][]byte{}
+	}
+	s.uploaded[filename] = data
+	return "upload-img/" + filename, nil
+}
+
+func (s *fakeAvatarImageStorage) Delete(string) error { return nil }
+
+type fakeBilibiliClient struct {
+	profile bilibili.Profile
+	avatar  []byte
+	err     error
+}
+
+func (f fakeBilibiliClient) Profile(context.Context, int64) (bilibili.Profile, error) {
+	if f.err != nil {
+		return bilibili.Profile{}, f.err
+	}
+	return f.profile, nil
+}
+
+func (f fakeBilibiliClient) Avatar(context.Context, string) ([]byte, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.avatar, nil
+}
+
+func testAvatarPNG() []byte {
+	return []byte{
+		0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+		0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+		0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41,
+		0x54, 0x78, 0x9c, 0x63, 0xfc, 0xcf, 0xc0, 0x50,
+		0x0f, 0x00, 0x04, 0x85, 0x01, 0x80, 0x84, 0xa9,
+		0x8c, 0x21, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
+		0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+	}
+}
+
+func TestAccountProfileMarksBilibiliUID(t *testing.T) {
+	openTestDatabase(t, "profile-flag.db")
+	router := newAccountRouter()
+
+	recorder, registered := performJSONRequest(router, http.MethodPost, "/register", `{"username":"alice","password":"strong-password"}`, nil)
+	if registered.Code != 200 {
+		t.Fatalf("registration failed: %+v", registered)
+	}
+	cookies := recorder.Result().Cookies()
+
+	_, invalid := performJSONRequest(router, http.MethodPut, "/profile", `{"display_id":"alice","display_is_bilibili_uid":true}`, cookies)
+	if invalid.Code != 400 {
+		t.Fatalf("a non numeric B 站 uid should be rejected: %+v", invalid)
+	}
+	_, numeric := performJSONRequest(router, http.MethodPut, "/profile", `{"display_id":"32818750","display_is_bilibili_uid":true}`, cookies)
+	if numeric.Code != 200 {
+		t.Fatalf("saving a B 站 uid failed: %+v", numeric)
+	}
+	var user database.User
+	if err := database.DB.Where("username = ?", "alice").First(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+	if user.DisplayID != "32818750" || user.DisplayIsBilibiliUID == nil || !*user.DisplayIsBilibiliUID {
+		t.Fatalf("B 站 uid flag was not stored: %+v", user)
+	}
+
+	_, plain := performJSONRequest(router, http.MethodPut, "/profile", `{"display_id":"alice","display_is_bilibili_uid":false}`, cookies)
+	if plain.Code != 200 {
+		t.Fatalf("saving a plain display id failed: %+v", plain)
+	}
+	if err := database.DB.First(&user, user.BilibiliUID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if user.DisplayID != "alice" || user.DisplayIsBilibiliUID == nil || *user.DisplayIsBilibiliUID {
+		t.Fatalf("plain display id should clear the flag: %+v", user)
+	}
+}
+
+func TestFetchBilibiliAvatar(t *testing.T) {
+	openTestDatabase(t, "bilibili-avatar.db")
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-session-secret-that-is-long-enough"))))
+	storage := &fakeAvatarImageStorage{}
+	controller := &AccountController{
+		Bilibili: fakeBilibiliClient{
+			profile: bilibili.Profile{MID: 32818750, Name: "-espla-", FaceURL: "https://i1.hdslb.com/bfs/face/x.jpg"},
+			avatar:  testAvatarPNG(),
+		},
+		Storage: storage,
+	}
+	router.POST("/register", controller.Register)
+	router.POST("/avatar/bilibili", controller.FetchBilibiliAvatar)
+
+	recorder, registered := performJSONRequest(router, http.MethodPost, "/register", `{"username":"alice","password":"strong-password"}`, nil)
+	if registered.Code != 200 {
+		t.Fatalf("registration failed: %+v", registered)
+	}
+	cookies := recorder.Result().Cookies()
+
+	_, invalid := performJSONRequest(router, http.MethodPost, "/avatar/bilibili", `{"bilibili_uid":"not-a-uid"}`, cookies)
+	if invalid.Code != 400 {
+		t.Fatalf("invalid uid should be rejected: %+v", invalid)
+	}
+	_, fetched := performJSONRequest(router, http.MethodPost, "/avatar/bilibili", `{"bilibili_uid":"32818750"}`, cookies)
+	if fetched.Code != 200 {
+		t.Fatalf("fetching the B 站 avatar failed: %+v", fetched)
+	}
+	if len(storage.uploaded) != 1 {
+		t.Fatalf("expected one stored avatar, got %d", len(storage.uploaded))
+	}
+	var user database.User
+	if err := database.DB.Where("username = ?", "alice").First(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(user.BilibiliAvatar, "/upload-img/avatar-bilibili-") {
+		t.Fatalf("avatar was not stored: %q", user.BilibiliAvatar)
+	}
 }
 
 func TestQuestionsShowTheCurrentAuthorProfile(t *testing.T) {

@@ -53,6 +53,7 @@ func Run() {
 			api.POST("/account/logout", accountController.Logout)
 			api.PUT("/account/profile", accountController.UpdateProfile)
 			api.POST("/account/avatar", accountController.UploadAvatar)
+			api.POST("/account/avatar/bilibili", accountController.FetchBilibiliAvatar)
 			api.PUT("/account/password", accountController.ChangePassword)
 			api.GET("/account/questions", questionController.MyQuestions)
 		}

@@ -58,6 +58,13 @@ function formatDate(dateString: string) {
   return new Date(dateString).toLocaleString("zh-CN");
 }
 
+// Real-name posts link to the B 站 space when the author marked the display id
+// as a B 站 uid; older questions fall back to the numeric heuristic.
+function linksToBilibiliSpace(displayId?: string, isBilibiliUid?: boolean): boolean {
+  if (!/^\d+$/.test(displayId ?? "")) return false;
+  return isBilibiliUid ?? true;
+}
+
 interface QuestionsPageContentProps {
   isSpam: boolean;
 }
@@ -476,7 +483,7 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {question.is_real_name && (question.bilibili_name || question.display_id) ? (
-                        /^\d+$/.test(question.display_id ?? "") ? (
+                        linksToBilibiliSpace(question.display_id, question.display_is_bilibili_uid) ? (
                           <a href={`https://space.bilibili.com/${question.display_id}`} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-[145px] items-center gap-2 text-primary hover:underline">
                             {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />}
                             <span className="truncate" title={`UID ${question.display_id}`}>{question.bilibili_name || question.display_id}</span>
@@ -644,7 +651,7 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
                                   <li>时间: {formatDate(question.created_at)}</li>
                                   {question.is_real_name && (question.bilibili_name || question.display_id) && (
                                     <li>
-                                      {/^\d+$/.test(question.display_id ?? "") ? (
+                                      {linksToBilibiliSpace(question.display_id, question.display_is_bilibili_uid) ? (
                                         <a href={`https://space.bilibili.com/${question.display_id}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary hover:underline">
                                           {question.bilibili_avatar && <img src={question.bilibili_avatar} alt="" className="h-6 w-6 rounded-full object-cover" />}
                                           <span title={`UID ${question.display_id}`}>{question.bilibili_name || question.display_id}</span>

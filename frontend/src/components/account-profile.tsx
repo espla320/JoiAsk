@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Settings, Upload, X } from "lucide-react";
+import { Download, Loader2, Settings, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { changeAccountPassword, updateAccountProfile, uploadAccountAvatar } from "@/lib/api";
+import { changeAccountPassword, fetchBilibiliAvatar, updateAccountProfile, uploadAccountAvatar } from "@/lib/api";
 import { useAccountAuth } from "@/lib/account-auth";
 
 export function AccountProfile() {
   const { user, setUser } = useAccountAuth();
   const [open, setOpen] = useState(false);
   const [displayId, setDisplayId] = useState("");
+  const [isBilibiliUid, setIsBilibiliUid] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,6 +28,7 @@ export function AccountProfile() {
   useEffect(() => {
     if (!open) return;
     setDisplayId(user?.display_id ?? "");
+    setIsBilibiliUid(user?.display_is_bilibili_uid ?? /^\d+$/.test(user?.display_id ?? ""));
     setAvatarFile(null);
     setError("");
     setMessage("");
@@ -65,7 +67,7 @@ export function AccountProfile() {
         setAvatarFile(null);
         if (fileRef.current) fileRef.current.value = "";
       }
-      const updated = await updateAccountProfile(displayId.trim());
+      const updated = await updateAccountProfile(displayId.trim(), isBilibiliUid);
       if (updated.code === 200) {
         setUser(updated.data);
         setMessage("已保存");
@@ -82,7 +84,29 @@ export function AccountProfile() {
   const avatarSrc = preview || user.bilibili_avatar;
   const trimmedDisplayId = displayId.trim();
   const isNumericDisplayId = /^\d+$/.test(trimmedDisplayId);
+  const linksToBilibili = isBilibiliUid && isNumericDisplayId;
   const previewName = user.bilibili_name || user.username;
+
+  const fetchAvatarFromBilibili = async () => {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetchBilibiliAvatar(trimmedDisplayId);
+      if (response.code === 200) {
+        setUser(response.data.profile);
+        setAvatarFile(null);
+        if (fileRef.current) fileRef.current.value = "";
+        setMessage(`已获取 ${response.data.name} 的头像`);
+      } else {
+        setError(response.message || "获取头像失败");
+      }
+    } catch {
+      setError("获取头像失败，请稍后重试");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submitPasswordChange = async () => {
     if (newPassword !== confirmPassword) {
@@ -171,6 +195,18 @@ export function AccountProfile() {
                     <Upload className="mr-2 h-4 w-4" />
                     选择头像
                   </Button>
+                  {isBilibiliUid && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      onClick={fetchAvatarFromBilibili}
+                      disabled={busy || !isNumericDisplayId}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      从 B 站获取头像
+                    </Button>
+                  )}
                   <p className="text-xs text-muted-foreground">支持常见图片格式，最大 5 MB。</p>
                 </div>
               </div>
@@ -181,8 +217,18 @@ export function AccountProfile() {
                   value={displayId}
                   onChange={(event) => setDisplayId(event.target.value)}
                   maxLength={32}
-                  placeholder="例如你的 B 站 UID 或昵称，可留空"
+                  inputMode={isBilibiliUid ? "numeric" : "text"}
+                  placeholder={isBilibiliUid ? "填写你的 B 站 UID（纯数字）" : "例如昵称，可留空"}
                 />
+                <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[var(--primary)]"
+                    checked={isBilibiliUid}
+                    onChange={(event) => setIsBilibiliUid(event.target.checked)}
+                  />
+                  这是 B 站 UID（勾选后昵称会链接到 B 站空间，并可自动获取 B 站头像）
+                </label>
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   只会在你勾选「实名投稿」的提问下方显示。已发布的提问不会回溯更新。
                 </p>
@@ -197,7 +243,7 @@ export function AccountProfile() {
                   ) : (
                     <span className="h-6 w-6 rounded-full bg-muted" />
                   )}
-                  {isNumericDisplayId ? (
+                  {linksToBilibili ? (
                     <a
                       href={`https://space.bilibili.com/${trimmedDisplayId}`}
                       target="_blank"
@@ -214,9 +260,9 @@ export function AccountProfile() {
                   )}
                 </div>
                 <p className="mt-1.5 text-xs text-muted-foreground">
-                  {isNumericDisplayId
+                  {linksToBilibili
                     ? `纯数字 ID 会自动链接到 B 站空间：space.bilibili.com/${trimmedDisplayId}`
-                    : "当前 ID 不是纯数字，会按普通文本显示；填成 B 站 UID（纯数字）就会自动变成空间链接。"}
+                    : "当前按普通用户名显示，不会跳转；勾选上面的「这是 B 站 UID」并填写纯数字 ID 后会链接到 B 站空间。"}
                 </p>
               </div>
 

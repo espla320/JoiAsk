@@ -44,6 +44,14 @@ function formatTime(dateString: string): string {
   return `${time}${unit} 前`;
 }
 
+// Real-name posts link to the B 站 space when the author marked the display id
+// as a B 站 uid. Questions written before that flag existed keep using the
+// numeric heuristic so their links do not disappear.
+function linksToBilibiliSpace(displayId?: string, isBilibiliUid?: boolean): boolean {
+  if (!/^\d+$/.test(displayId ?? '')) return false;
+  return isBilibiliUid ?? true;
+}
+
 export function PostCard({ data, isLoggedIn = false, emojiUpdates, archiveUpdates, remoteCursors = [], onCursorMove, onCursorLeave }: PostCardProps) {
   const router = useRouter();
   const cardRef = useRef<HTMLDivElement>(null);
@@ -318,7 +326,7 @@ export function PostCard({ data, isLoggedIn = false, emojiUpdates, archiveUpdate
             {/* Footer */}
             <div className="text-right text-sm min-h-6 flex justify-between items-center gap-2">
               {data.is_real_name && (data.bilibili_name || data.display_id) ? (
-                /^\d+$/.test(data.display_id ?? '') ? (
+                linksToBilibiliSpace(data.display_id, data.display_is_bilibili_uid) ? (
                   <a
                     href={`https://space.bilibili.com/${data.display_id}`}
                     target="_blank"
