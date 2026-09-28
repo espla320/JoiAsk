@@ -70,7 +70,11 @@ export function AccountProfile() {
       const updated = await updateAccountProfile(displayId.trim(), isBilibiliUid);
       if (updated.code === 200) {
         setUser(updated.data);
-        setMessage("已保存");
+        setMessage(
+          isBilibiliUid && updated.data.bilibili_name && updated.data.bilibili_name !== user.bilibili_name
+            ? `已保存，显示名已同步为 ${updated.data.bilibili_name}`
+            : "已保存"
+        );
       } else {
         setError(updated.message || "保存失败");
       }
@@ -227,7 +231,7 @@ export function AccountProfile() {
                     checked={isBilibiliUid}
                     onChange={(event) => setIsBilibiliUid(event.target.checked)}
                   />
-                  这是 B 站 UID（勾选后昵称会链接到 B 站空间，并可自动获取 B 站头像）
+                  这是 B 站 UID（勾选后昵称会链接到 B 站空间，显示名同步为 B 站昵称，并可自动获取 B 站头像）
                 </label>
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   只会在你勾选「实名投稿」的提问下方显示。已发布的提问不会回溯更新。

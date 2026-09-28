@@ -54,10 +54,13 @@ func openTestDatabase(t *testing.T, name string) {
 }
 
 func newAccountRouter() *gin.Engine {
+	return newAccountRouterWith(&AccountController{})
+}
+
+func newAccountRouterWith(controller *AccountController) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-session-secret-that-is-long-enough"))))
-	controller := new(AccountController)
 	router.POST("/register", controller.Register)
 	router.POST("/login", controller.Login)
 	router.GET("/info", controller.Info)
@@ -269,7 +272,11 @@ func testAvatarPNG() []byte {
 
 func TestAccountProfileMarksBilibiliUID(t *testing.T) {
 	openTestDatabase(t, "profile-flag.db")
-	router := newAccountRouter()
+	router := newAccountRouterWith(&AccountController{
+		Bilibili: fakeBilibiliClient{
+			profile: bilibili.Profile{MID: 32818750, Name: "-espla-", FaceURL: "https://i1.hdslb.com/bfs/face/x.jpg"},
+		},
+	})
 
 	recorder, registered := performJSONRequest(router, http.MethodPost, "/register", `{"username":"alice","password":"strong-password"}`, nil)
 	if registered.Code != 200 {
@@ -292,6 +299,10 @@ func TestAccountProfileMarksBilibiliUID(t *testing.T) {
 	if user.DisplayID != "32818750" || user.DisplayIsBilibiliUID == nil || !*user.DisplayIsBilibiliUID {
 		t.Fatalf("B 站 uid flag was not stored: %+v", user)
 	}
+	// the display name follows the B 站 nickname
+	if user.BilibiliName != "-espla-" {
+		t.Fatalf("display name should follow the B 站 nickname, got %q", user.BilibiliName)
+	}
 
 	_, plain := performJSONRequest(router, http.MethodPut, "/profile", `{"display_id":"alice","display_is_bilibili_uid":false}`, cookies)
 	if plain.Code != 200 {
@@ -302,6 +313,10 @@ func TestAccountProfileMarksBilibiliUID(t *testing.T) {
 	}
 	if user.DisplayID != "alice" || user.DisplayIsBilibiliUID == nil || *user.DisplayIsBilibiliUID {
 		t.Fatalf("plain display id should clear the flag: %+v", user)
+	}
+	// ... and the name goes back to the login name
+	if user.BilibiliName != "alice" {
+		t.Fatalf("display name should fall back to the login name, got %q", user.BilibiliName)
 	}
 }
 
@@ -344,6 +359,9 @@ func TestFetchBilibiliAvatar(t *testing.T) {
 	}
 	if !strings.HasPrefix(user.BilibiliAvatar, "/upload-img/avatar-bilibili-") {
 		t.Fatalf("avatar was not stored: %q", user.BilibiliAvatar)
+	}
+	if user.BilibiliName != "-espla-" {
+		t.Fatalf("fetching the avatar should also sync the nickname, got %q", user.BilibiliName)
 	}
 }
 

@@ -209,7 +209,9 @@ func (*AccountController) ChangePassword(c *gin.Context) {
 }
 
 // UpdateProfile stores the public id the member wants to show on real-name posts.
-func (*AccountController) UpdateProfile(c *gin.Context) {
+// When the id is marked as a B 站 uid the display name follows the B 站 nickname
+// and otherwise it falls back to the login name.
+func (ctl *AccountController) UpdateProfile(c *gin.Context) {
 	user, ok := currentMember(c)
 	if !ok {
 		Fail(c, 408, "请先登录")
@@ -243,7 +245,47 @@ func (*AccountController) UpdateProfile(c *gin.Context) {
 	user.DisplayID = displayID
 	isBilibiliUID := body.DisplayIsBilibiliUID
 	user.DisplayIsBilibiliUID = &isBilibiliUID
+	if isBilibiliUID {
+		uid, err := strconv.ParseInt(displayID, 10, 64)
+		if err != nil {
+			Fail(c, 400, "B 站 UID 无效")
+			return
+		}
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+		defer cancel()
+		profile, err := ctl.bilibili().Profile(ctx, uid)
+		if err != nil {
+			// The id is still saved; the nickname is retried the next time the
+			// member fetches the avatar or saves the profile.
+			log.Warnf("failed to sync B 站 nickname for uid %d: %v", user.BilibiliUID, err)
+		} else if err := ctl.storeDisplayName(&user, profile.Name); err != nil {
+			log.Errorf("failed to store display name for uid %d: %v", user.BilibiliUID, err)
+		}
+	} else if user.BilibiliName != user.Username {
+		if err := ctl.storeDisplayName(&user, ""); err != nil {
+			log.Errorf("failed to reset display name for uid %d: %v", user.BilibiliUID, err)
+		}
+	}
 	Success(c, publicUser(user))
+}
+
+// storeDisplayName keeps the member's public name in sync. An empty value resets
+// it to the login name.
+func (*AccountController) storeDisplayName(user *database.User, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = user.Username
+	}
+	if name == user.BilibiliName {
+		return nil
+	}
+	if err := database.DB.Model(&database.User{}).
+		Where("bilibili_uid = ?", user.BilibiliUID).
+		Update("bilibili_name", name).Error; err != nil {
+		return err
+	}
+	user.BilibiliName = name
+	return nil
 }
 
 // isNumericID reports whether the value only contains ASCII digits.
@@ -363,6 +405,9 @@ func (ctl *AccountController) FetchBilibiliAvatar(c *gin.Context) {
 		return
 	}
 	user.BilibiliAvatar = storedURL
+	if err := ctl.storeDisplayName(&user, profile.Name); err != nil {
+		log.Errorf("failed to store display name for uid %d: %v", user.BilibiliUID, err)
+	}
 	Success(c, gin.H{
 		"profile": publicUser(user),
 		"name":    profile.Name,
