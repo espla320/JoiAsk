@@ -165,3 +165,81 @@ func TestAccountRegisterValidation(t *testing.T) {
 		t.Fatalf("expected exactly one account, got %d", count)
 	}
 }
+
+type questionAuthorView struct {
+	ID        uint   `json:"id"`
+	DisplayID string `json:"display_id"`
+	Avatar    string `json:"bilibili_avatar"`
+	Name      string `json:"bilibili_name"`
+}
+
+func TestQuestionsShowTheCurrentAuthorProfile(t *testing.T) {
+	openTestDatabase(t, "author-profile.db")
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(sessions.Sessions("session", cookie.NewStore([]byte("test-session-secret-that-is-long-enough"))))
+	router.GET("/question", new(QuestionController).Get)
+
+	tag := database.Tag{TagName: "提问箱"}
+	if err := database.DB.Create(&tag).Error; err != nil {
+		t.Fatal(err)
+	}
+	uid := int64(1)
+	user := database.User{
+		BilibiliUID:    uid,
+		Username:       "alice",
+		PasswordHash:   "x",
+		BilibiliName:   "alice",
+		BilibiliAvatar: "/upload-img/avatar-new.png",
+		DisplayID:      "32818750",
+	}
+	if err := database.DB.Create(&user).Error; err != nil {
+		t.Fatal(err)
+	}
+	// written when the profile still had the old display id and a different avatar
+	stale := database.Question{
+		BilibiliUID: &uid, TagID: int(tag.ID), Content: "旧投稿", IsRealName: true, IsPublish: true,
+		BilibiliName: "alice", BilibiliAvatar: "/upload-img/avatar-old.png", DisplayID: "-old-id-",
+	}
+	anonymous := database.Question{BilibiliUID: &uid, TagID: int(tag.ID), Content: "匿名投稿", IsPublish: true}
+	deletedUID := int64(999)
+	orphan := database.Question{
+		BilibiliUID: &deletedUID, TagID: int(tag.ID), Content: "账号已删除", IsRealName: true, IsPublish: true,
+		BilibiliName: "gone", BilibiliAvatar: "/upload-img/avatar-gone.png", DisplayID: "123",
+	}
+	for _, question := range []*database.Question{&stale, &anonymous, &orphan} {
+		if err := database.DB.Create(question).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	recorder, response := performJSONRequest(router, http.MethodGet, "/question", "", nil)
+	if response.Code != 200 {
+		t.Fatalf("question list failed: %+v", response)
+	}
+	var payload struct {
+		Data struct {
+			Questions []questionAuthorView `json:"questions"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Data.Questions) != 3 {
+		t.Fatalf("expected 3 questions, got %d", len(payload.Data.Questions))
+	}
+	byID := make(map[uint]questionAuthorView, len(payload.Data.Questions))
+	for _, question := range payload.Data.Questions {
+		byID[question.ID] = question
+	}
+
+	if got := byID[stale.ID]; got.DisplayID != "32818750" || got.Avatar != "/upload-img/avatar-new.png" || got.Name != "alice" {
+		t.Fatalf("real-name question should show the current profile, got %+v", got)
+	}
+	if got := byID[anonymous.ID]; got.DisplayID != "" || got.Avatar != "" || got.Name != "" {
+		t.Fatalf("anonymous question should expose no author info, got %+v", got)
+	}
+	if got := byID[orphan.ID]; got.DisplayID != "123" || got.Avatar != "/upload-img/avatar-gone.png" {
+		t.Fatalf("question of a deleted account should keep its snapshot, got %+v", got)
+	}
+}

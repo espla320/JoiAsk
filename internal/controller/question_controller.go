@@ -124,6 +124,53 @@ type QuestionRequest struct {
 	Spam     bool   `form:"is_spam"`
 }
 
+// applyCurrentAuthorInfo replaces the author snapshot stored on a question with
+// the account's current profile, so that changing the display id or the avatar
+// is reflected on questions submitted earlier. Questions whose account no longer
+// exists keep the snapshot taken at submission time.
+func applyCurrentAuthorInfo(questions []database.Question) {
+	if len(questions) == 0 {
+		return
+	}
+	ids := make([]int64, 0, len(questions))
+	seen := make(map[int64]struct{}, len(questions))
+	for _, question := range questions {
+		if !question.IsRealName || question.BilibiliUID == nil {
+			continue
+		}
+		if _, ok := seen[*question.BilibiliUID]; ok {
+			continue
+		}
+		seen[*question.BilibiliUID] = struct{}{}
+		ids = append(ids, *question.BilibiliUID)
+	}
+	if len(ids) == 0 {
+		return
+	}
+	var users []database.User
+	if err := database.DB.Where("bilibili_uid IN ?", ids).Find(&users).Error; err != nil {
+		log.Errorf("failed to load author profiles for questions: %v", err)
+		return
+	}
+	byID := make(map[int64]database.User, len(users))
+	for _, user := range users {
+		byID[user.BilibiliUID] = user
+	}
+	for index := range questions {
+		question := &questions[index]
+		if !question.IsRealName || question.BilibiliUID == nil {
+			continue
+		}
+		user, ok := byID[*question.BilibiliUID]
+		if !ok {
+			continue
+		}
+		question.BilibiliName = user.BilibiliName
+		question.BilibiliAvatar = user.BilibiliAvatar
+		question.DisplayID = user.DisplayID
+	}
+}
+
 type QuestionModifyRequest struct {
 	TagID     int   `json:"tag_id"`
 	IsHide    bool  `json:"is_hide"`
@@ -192,6 +239,7 @@ func (*QuestionController) Get(c *gin.Context) {
 	}
 	// Replies are private: administrators see every reply, members only see the
 	// replies to the questions they asked. Everyone else sees no reply at all.
+	applyCurrentAuthorInfo(questionList)
 	if c.GetBool("authed") {
 		for index := range questionList {
 			questionList[index].ReplyVisible = true
@@ -357,6 +405,7 @@ func (*QuestionController) MyQuestions(c *gin.Context) {
 	for index := range questions {
 		questions[index].ReplyVisible = true
 	}
+	applyCurrentAuthorInfo(questions)
 	Success(c, gin.H{"questions": questions})
 }
 
