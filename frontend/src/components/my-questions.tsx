@@ -137,7 +137,7 @@ export function MyQuestions() {
           onClick={openPanel}
           className="fixed bottom-6 right-6 z-[1300] max-w-[280px] rounded-md border-2 border-dashed border-[var(--fabric-stitch)] bg-card px-4 py-3 text-left text-sm text-foreground shadow-xl"
         >
-          管理员回复了你的提问，点击查看
+          你的提问收到了回复，点击查看
         </button>
       )}
 
@@ -184,20 +184,17 @@ export function MyQuestions() {
                     <div className="text-sm">
                       <FormattedContent content={question.content} />
                     </div>
-                    {question.reply ? (
+                    {question.reply && (
                       <div className="mt-3 rounded border-l-2 border-[var(--fabric-stitch)] bg-card/70 px-3 py-2">
-                        <p className="mb-1 text-xs text-muted-foreground">
-                          管理员回复
-                          {question.replied_at
-                            ? ` · ${new Date(question.replied_at).toLocaleString('zh-CN')}`
-                            : ''}
-                        </p>
+                        {question.replied_at && (
+                          <p className="mb-1 text-xs text-muted-foreground">
+                            {new Date(question.replied_at).toLocaleString('zh-CN')}
+                          </p>
+                        )}
                         <div className="text-sm">
                           <FormattedContent content={question.reply} />
                         </div>
                       </div>
-                    ) : (
-                      <p className="mt-3 text-xs text-muted-foreground">还没有回复</p>
                     )}
                   </li>
                 ))}

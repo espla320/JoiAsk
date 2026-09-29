@@ -64,6 +64,73 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+export interface UploadProgress {
+  loaded: number;
+  total: number;
+  percent: number;
+  bytesPerSecond: number;
+  secondsRemaining: number | null;
+}
+
+export class UploadError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'UploadError';
+    this.status = status;
+  }
+}
+
+// fetch cannot report upload progress, so uploads go through XHR instead.
+function uploadFormData(
+  path: string,
+  formData: FormData,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<ApiResponse<unknown>> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open('POST', `${API_BASE}${path}`, true);
+    request.withCredentials = true;
+    const startedAt = Date.now();
+
+    request.upload.onprogress = (event) => {
+      if (!onProgress || !event.lengthComputable || event.total <= 0) return;
+      const elapsed = Math.max((Date.now() - startedAt) / 1000, 0.05);
+      const bytesPerSecond = event.loaded / elapsed;
+      onProgress({
+        loaded: event.loaded,
+        total: event.total,
+        percent: Math.min(100, Math.round((event.loaded / event.total) * 100)),
+        bytesPerSecond,
+        secondsRemaining:
+          bytesPerSecond > 0
+            ? Math.max(0, Math.ceil((event.total - event.loaded) / bytesPerSecond))
+            : null,
+      });
+    };
+
+    request.onload = () => {
+      let payload: ApiResponse<unknown> | null = null;
+      try {
+        payload = JSON.parse(request.responseText) as ApiResponse<unknown>;
+      } catch {
+        payload = null;
+      }
+      if (!payload) {
+        reject(new UploadError('上传失败', request.status));
+        return;
+      }
+      resolve(payload);
+    };
+    request.onerror = () => reject(new UploadError('网络异常，上传失败', 0));
+    request.ontimeout = () => reject(new UploadError('上传超时', 0));
+    request.onabort = () => reject(new UploadError('上传已取消', 0));
+
+    request.send(formData);
+  });
+}
+
 export interface QuestionsResponse {
   questions: Question[];
   page: number;
@@ -127,15 +194,13 @@ export async function updateAccountProfile(displayId: string, isBilibiliUid: boo
   return res.json();
 }
 
-export async function uploadAccountAvatar(file: File): Promise<ApiResponse<AccountUser>> {
+export async function uploadAccountAvatar(
+  file: File,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<ApiResponse<AccountUser>> {
   const formData = new FormData();
   formData.append('file', file);
-  const res = await fetch(`${API_BASE}/account/avatar`, {
-    method: 'POST',
-    credentials: 'include',
-    body: formData,
-  });
-  return res.json();
+  return (await uploadFormData('/account/avatar', formData, onProgress)) as ApiResponse<AccountUser>;
 }
 
 export async function changeAccountPassword(oldPassword: string, newPassword: string): Promise<ApiResponse<null>> {
@@ -187,12 +252,11 @@ export async function getQuestions(params: {
   return res.json();
 }
 
-export async function createQuestion(data: FormData): Promise<Response> {
-  return fetch(`${API_BASE}/question`, {
-    method: 'POST',
-    credentials: 'include',
-    body: data,
-  });
+export async function createQuestion(
+  data: FormData,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<ApiResponse<null>> {
+  return (await uploadFormData('/question', data, onProgress)) as ApiResponse<null>;
 }
 
 export async function updateQuestion(id: number, data: {

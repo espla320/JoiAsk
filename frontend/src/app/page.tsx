@@ -15,7 +15,18 @@ import { PostCard } from '@/components/post-card';
 import { FileUpload } from '@/components/file-upload';
 import { InputEmojiPicker } from '@/components/input-emoji-picker';
 import { GoToTop } from '@/components/go-to-top';
-import { getQuestions, getTags, getConfig, getInfo, createQuestion, Tag, Question } from '@/lib/api';
+import {
+  getQuestions,
+  getTags,
+  getConfig,
+  getInfo,
+  createQuestion,
+  Tag,
+  Question,
+  UploadError,
+  UploadProgress,
+} from '@/lib/api';
+import { formatBytes, formatDuration, formatSpeed } from '@/lib/format';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAccountAuth } from '@/lib/account-auth';
 import { CircleHelp } from 'lucide-react';
@@ -30,6 +41,7 @@ export default function HomePage() {
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   const [requireVerifiedUserToPost, setRequireVerifiedUserToPost] = useState(false);
@@ -191,6 +203,7 @@ export default function HomePage() {
     }
 
     setIsSubmitting(true);
+    setUploadProgress(null);
     const formData = new FormData();
     formData.append('tag_id', selectedTag);
     formData.append('content', trimmedContent);
@@ -199,32 +212,30 @@ export default function HomePage() {
     files.forEach((file) => formData.append('files[]', file));
 
     try {
-      const res = await createQuestion(formData);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.code === 200) {
-          setSubmitSuccess(true);
-          setContent('');
-          localStorage.setItem('ask_content', '');
-          setSelectedTag('');
-          setIsRainbow(false);
-          setIsRealName(false);
-          setShowImageUpload(false);
-          setFiles([]);
-          setTimeout(() => setSubmitSuccess(false), 4000);
-        } else {
-          alert(data.message);
-        }
-      } else if (res.status === 413) {
-        alert('图片太大，请缩小图片体积或者分开投稿');
+      const data = await createQuestion(formData, setUploadProgress);
+      if (data.code === 200) {
+        setSubmitSuccess(true);
+        setContent('');
+        localStorage.setItem('ask_content', '');
+        setSelectedTag('');
+        setIsRainbow(false);
+        setIsRealName(false);
+        setShowImageUpload(false);
+        setFiles([]);
+        setTimeout(() => setSubmitSuccess(false), 4000);
       } else {
-        alert('投稿出现错误');
+        alert(data.message || '投稿出现错误');
       }
     } catch (error) {
       console.error('Submit error:', error);
-      alert('投稿失败');
+      if (error instanceof UploadError && error.status === 413) {
+        alert('图片太大，请缩小图片体积或者分开投稿');
+      } else {
+        alert(error instanceof Error ? error.message : '投稿失败');
+      }
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -361,8 +372,41 @@ export default function HomePage() {
           onClick={handleSubmit}
           disabled={isSubmitting}
         >
-          {isSubmitting ? '上传中，请稍等' : requireVerifiedUserToPost && !accountUser ? '登录后提交' : '提交'}
+          {isSubmitting
+            ? uploadProgress
+              ? `上传中 ${uploadProgress.percent}%`
+              : '上传中，请稍等'
+            : requireVerifiedUserToPost && !accountUser
+              ? '登录后提交'
+              : '提交'}
         </Button>
+
+        {/* Upload progress (only meaningful when images are attached) */}
+        {isSubmitting && uploadProgress && files.length > 0 && (
+          <div className="mt-3 space-y-1">
+            <div className="h-2 w-full overflow-hidden rounded bg-secondary">
+              <div
+                className="h-full rounded bg-primary transition-[width] duration-200"
+                style={{ width: `${uploadProgress.percent}%` }}
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 text-xs text-muted-foreground">
+              <span>
+                {uploadProgress.percent}% · {formatBytes(uploadProgress.loaded)} /{' '}
+                {formatBytes(uploadProgress.total)}
+              </span>
+              <span>
+                {uploadProgress.percent >= 100
+                  ? '上传完成，等待服务器处理…'
+                  : `${formatSpeed(uploadProgress.bytesPerSecond)}${
+                      uploadProgress.secondsRemaining !== null
+                        ? ` · 剩余约 ${formatDuration(uploadProgress.secondsRemaining)}`
+                        : ''
+                    }`}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Success Message */}
         {submitSuccess && (

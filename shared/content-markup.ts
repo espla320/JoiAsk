@@ -9,6 +9,11 @@ export const CONTENT_EMOJI_MAP: Record<string, string> = {
   '[鸢尾尾直播间表情包_疑问]': '/ayame_emojis/question.png',
   '[鸢尾尾直播间表情包_呜呜]': '/ayame_emojis/wuwu.png',
   '[鸢尾尾直播间表情包_气气]': '/ayame_emojis/heng.png',
+  '[鸢尾尾创意工坊表情包_不赖]': '/ayame_emojis_custom/bulai.jpg',
+  '[鸢尾尾创意工坊表情包_肥嘟嘟]': '/ayame_emojis_custom/feidudu.jpg',
+  '[鸢尾尾创意工坊表情包_omg]': '/ayame_emojis_custom/omg.gif',
+  '[鸢尾尾创意工坊表情包_我一直在看着你]': '/ayame_emojis_custom/shikan.png',
+  '[鸢尾尾创意工坊表情包_😭]': '/ayame_emojis_custom/work.jpg',
 };
 
 export type ContentEffectName = 'hide' | 'bold' | 'big' | 'shake';
