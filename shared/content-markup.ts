@@ -18,6 +18,18 @@ export const CONTENT_EMOJI_MAP: Record<string, string> = {
 
 export type ContentEffectName = 'hide' | 'bold' | 'big' | 'shake';
 
+// Uploaded files are stored as "upload-img/<name>" for local storage and as a
+// full URL for object storage. Rendering must not rely on relative resolution:
+// the admin console lives under /admin, so a relative path would resolve to
+// /admin/<route>/upload-img/... and fail. Normalise to an absolute path.
+export function resolveMediaUrl(value: string | null | undefined): string {
+  const trimmed = (value ?? '').trim();
+  if (trimmed === '') return '';
+  // keep absolute URLs (http:, https:, data:, blob:, ...)
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
 export type ContentNode =
   | { type: 'text'; value: string }
   | { type: 'link'; href: string; label: string }

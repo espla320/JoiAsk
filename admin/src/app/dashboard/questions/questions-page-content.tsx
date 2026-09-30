@@ -53,6 +53,7 @@ import {
 } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
 import { FormattedContent } from "@/components/formatted-content";
+import { resolveMediaUrl } from "@joiask/content-markup";
 
 function formatDate(dateString: string) {
   return new Date(dateString).toLocaleString("zh-CN");
@@ -619,6 +620,7 @@ export function QuestionsPageContent({ isSpam }: QuestionsPageContentProps) {
                                     {question.images
                                       .split(";")
                                       .filter(Boolean)
+                                      .map((img) => resolveMediaUrl(img))
                                       .map((img, idx) => (
                                         <a
                                           key={idx}
