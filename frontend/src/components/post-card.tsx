@@ -6,6 +6,7 @@ import { Question, updateQuestion, EmojiData } from '@/lib/api';
 import { EmojiPicker } from './emoji-picker';
 import { ImagePreview } from './image-preview';
 import { FormattedContent } from './formatted-content';
+import { resolveMediaUrl } from '@joiask/content-markup';
 
 interface RemoteCursor {
   clientId: string;
@@ -103,7 +104,9 @@ export function PostCard({ data, isLoggedIn = false, emojiUpdates, archiveUpdate
     }
   }, []);
 
-  const imageList = data.images ? data.images.split(';').filter(Boolean) : [];
+  const imageList = data.images
+    ? data.images.split(';').filter(Boolean).map(resolveMediaUrl)
+    : [];
 
   // Throttle cursor updates to reduce network traffic
   const lastCursorUpdate = useRef(0);
