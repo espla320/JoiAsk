@@ -14,6 +14,7 @@ export const CONTENT_EMOJI_MAP: Record<string, string> = {
   '[鸢尾尾创意工坊表情包_omg]': '/ayame_emojis_custom/omg.gif',
   '[鸢尾尾创意工坊表情包_我一直在看着你]': '/ayame_emojis_custom/shikan.png',
   '[鸢尾尾创意工坊表情包_😭]': '/ayame_emojis_custom/work.jpg',
+  '[鸢尾尾创意工坊表情包_鸢鸢星]': '/ayame_emojis_custom/yyx.jpg',
 };
 
 export type ContentEffectName = 'hide' | 'bold' | 'big' | 'shake';
