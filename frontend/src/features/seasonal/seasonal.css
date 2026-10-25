@@ -1,0 +1,124 @@
+/*
+ * Seasonal runtime decorations.
+ *
+ * Scoped entirely under .seasonal-* selectors. Core theme tokens such as
+ * --background, --foreground, --primary, --card and --fabric-* are never
+ * overridden; the decorations are an additive layer on top of the app.
+ */
+
+.seasonal-scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  /* Negative z-index keeps it above the canvas background but behind every
+     page element, so it can never cover the navbar, cards or dialogs. */
+}
+
+.seasonal-scene__backdrop {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  pointer-events: none;
+}
+
+.seasonal-effect {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.seasonal-effect--petals {
+  overflow: hidden;
+}
+
+.seasonal-petal {
+  position: absolute;
+  top: -6%;
+  border-radius: 62% 38% 58% 42% / 60% 55% 45% 40%;
+  opacity: 0.75;
+  animation-name: seasonal-petal-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes seasonal-petal-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 0.8;
+  }
+
+  90% {
+    opacity: 0.55;
+  }
+
+  100% {
+    transform: translate3d(var(--seasonal-petal-drift, 0px), 112vh, 0) rotate(320deg);
+    opacity: 0;
+  }
+}
+
+.seasonal-effect--petals[data-paused="true"] .seasonal-petal {
+  animation-play-state: paused;
+}
+
+.seasonal-effect--petals[data-motion="reduced"] .seasonal-petal {
+  animation: none;
+}
+
+.seasonal-navbar-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-inline: 4px;
+  pointer-events: none;
+}
+
+.seasonal-navbar-accent__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  animation: seasonal-twinkle 3.6s ease-in-out infinite;
+}
+
+.seasonal-navbar-accent__dot--small {
+  width: 4px;
+  height: 4px;
+  opacity: 0.7;
+  animation-delay: 1.2s;
+}
+
+.seasonal-navbar-accent[data-motion="reduced"] .seasonal-navbar-accent__dot,
+.seasonal-navbar-accent[data-motion="off"] .seasonal-navbar-accent__dot {
+  animation: none;
+  opacity: 0.85;
+}
+
+@keyframes seasonal-twinkle {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.45;
+  }
+
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-petal,
+  .seasonal-navbar-accent__dot {
+    animation: none !important;
+  }
+}

@@ -6,6 +6,7 @@ import { Github, LogOut, UserRound } from 'lucide-react';
 import { useAccountAuth } from '@/lib/account-auth';
 import { MyQuestions } from '@/components/my-questions';
 import { AccountProfile } from '@/components/account-profile';
+import { SeasonalPreferencesControl, SeasonalSlot } from '@/features/seasonal';
 
 const NAV_ROUTES = [
   { label: '提问', path: '/' },
@@ -32,6 +33,7 @@ export function Navbar() {
             style={{ backgroundImage: 'url(/iris-icon.png)' }}
           />
         </Link>
+        <SeasonalSlot name="navbar-accent" />
         {NAV_ROUTES.map(({ label, path }) => (
           <Link
             key={path}
@@ -47,6 +49,7 @@ export function Navbar() {
         ))}
       </div>
       <div className="flex min-w-0 items-center gap-2">
+        <SeasonalPreferencesControl />
         {!loading && user ? (
           <>
             <AccountProfile />
