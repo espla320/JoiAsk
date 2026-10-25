@@ -24,6 +24,7 @@ const EMOJI_GROUPS = [
       { name: 'omg', tag: '[鸢尾尾创意工坊表情包_omg]', url: '/ayame_emojis_custom/omg.gif' },
       { name: '我一直在看着你', tag: '[鸢尾尾创意工坊表情包_我一直在看着你]', url: '/ayame_emojis_custom/shikan.png' },
       { name: '😭', tag: '[鸢尾尾创意工坊表情包_😭]', url: '/ayame_emojis_custom/work.jpg' },
+      { name: '鸢鸢星', tag: '[鸢尾尾创意工坊表情包_鸢鸢星]', url: '/ayame_emojis_custom/yyx.jpg' },
     ],
   },
 ];
