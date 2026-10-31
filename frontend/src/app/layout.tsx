@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "../features/seasonal/seasonal.css";
 import { Navbar } from "@/components/navbar";
 import { AccountAuthProvider } from "@/lib/account-auth";
+import { SeasonalRoot } from "@/features/seasonal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,10 +34,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased fabric-linen`}
       >
-        <AccountAuthProvider>
-          <Navbar />
-          {children}
-        </AccountAuthProvider>
+        <SeasonalRoot>
+          <AccountAuthProvider>
+            <Navbar />
+            {children}
+          </AccountAuthProvider>
+        </SeasonalRoot>
       </body>
     </html>
   );

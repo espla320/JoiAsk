@@ -1,0 +1,550 @@
+/*
+ * Seasonal runtime decorations.
+ *
+ * Scoped entirely under .seasonal-* selectors. Core theme tokens such as
+ * --background, --foreground, --primary, --card and --fabric-* are never
+ * overridden; the decorations are an additive layer on top of the app.
+ */
+
+.seasonal-scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  /* Negative z-index keeps it above the canvas background but behind every
+     page element, so it can never cover the navbar, cards or dialogs. */
+}
+
+.seasonal-scene__backdrop {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  pointer-events: none;
+}
+
+.seasonal-effect {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.seasonal-effect--petals {
+  overflow: hidden;
+}
+
+.seasonal-petal {
+  position: absolute;
+  top: -6%;
+  border-radius: 62% 38% 58% 42% / 60% 55% 45% 40%;
+  opacity: 0.75;
+  animation-name: seasonal-petal-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes seasonal-petal-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 0.8;
+  }
+
+  90% {
+    opacity: 0.55;
+  }
+
+  100% {
+    transform: translate3d(var(--seasonal-petal-drift, 0px), 112vh, 0) rotate(320deg);
+    opacity: 0;
+  }
+}
+
+.seasonal-effect--petals[data-paused="true"] .seasonal-petal {
+  animation-play-state: paused;
+}
+
+.seasonal-effect--petals[data-motion="reduced"] .seasonal-petal {
+  animation: none;
+}
+
+.seasonal-navbar-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-inline: 4px;
+  pointer-events: none;
+}
+
+.seasonal-navbar-accent__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  animation: seasonal-twinkle 3.6s ease-in-out infinite;
+}
+
+.seasonal-navbar-accent__dot--small {
+  width: 4px;
+  height: 4px;
+  opacity: 0.7;
+  animation-delay: 1.2s;
+}
+
+.seasonal-navbar-accent[data-motion="reduced"] .seasonal-navbar-accent__dot,
+.seasonal-navbar-accent[data-motion="off"] .seasonal-navbar-accent__dot {
+  animation: none;
+  opacity: 0.85;
+}
+
+@keyframes seasonal-twinkle {
+  0%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.45;
+  }
+
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+/* ── Anniversary ─────────────────────────────────────────────────────── */
+
+.seasonal-effect--anniversary-stars {
+  overflow: hidden;
+}
+
+.seasonal-anniversary-decoration {
+  position: absolute;
+  display: block;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  animation: seasonal-anniversary-breathe 7.5s ease-in-out infinite;
+}
+
+.seasonal-anniversary-decoration img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.seasonal-anniversary-decoration--lace-left {
+  left: -42px;
+  top: 38px;
+  width: clamp(280px, 25vw, 410px);
+  filter: drop-shadow(0 6px 15px rgba(113, 76, 35, 0.1));
+  transform: rotate(-5deg);
+}
+
+.seasonal-anniversary-decoration--lace-right {
+  right: -28px;
+  top: 25px;
+  width: clamp(235px, 20vw, 330px);
+  filter: drop-shadow(0 6px 15px rgba(113, 76, 35, 0.1));
+  transform: rotate(7deg);
+  animation-delay: -2.2s;
+}
+
+.seasonal-anniversary-decoration--rose {
+  right: -24px;
+  bottom: -34px;
+  width: clamp(220px, 17vw, 290px);
+  filter: drop-shadow(0 7px 17px rgba(113, 76, 35, 0.13));
+  transform: rotate(8deg);
+  animation-delay: -4.6s;
+}
+
+.seasonal-anniversary-decoration--stars-left {
+  left: 6%;
+  top: 13%;
+  width: clamp(58px, 6vw, 92px);
+  opacity: 0.76;
+  transform: rotate(-12deg);
+  animation-delay: -3.3s;
+}
+
+.seasonal-anniversary-decoration--stars-right {
+  right: 8%;
+  top: 20%;
+  width: clamp(62px, 7vw, 108px);
+  opacity: 0.64;
+  transform: rotate(9deg);
+  animation-delay: -1.1s;
+}
+
+.seasonal-anniversary-decoration--feather {
+  opacity: 0.54;
+  filter: drop-shadow(0 5px 10px rgba(93, 84, 126, 0.1));
+}
+
+.seasonal-anniversary-decoration--feather.seasonal-anniversary-feather--far-left,
+.seasonal-anniversary-decoration--feather.seasonal-anniversary-feather--bottom-right {
+  opacity: 0.4;
+  animation-delay: -2.8s;
+}
+
+.seasonal-anniversary-decoration--feather.seasonal-anniversary-feather--top-center {
+  opacity: 0.35;
+  animation-delay: -5.1s;
+}
+
+.seasonal-anniversary-star {
+  position: absolute;
+  display: block;
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 94%,
+    50% 72%,
+    21% 94%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
+  background: currentColor;
+  filter: drop-shadow(0 0 5px rgba(255, 245, 204, 0.82));
+  opacity: 0.6;
+  animation: seasonal-anniversary-twinkle 6s ease-in-out infinite;
+}
+
+.seasonal-effect--anniversary-stars[data-motion="reduced"] .seasonal-anniversary-star {
+  animation: none;
+  opacity: 0.4;
+}
+
+.seasonal-effect--anniversary-stars[data-motion="reduced"] .seasonal-anniversary-decoration,
+.seasonal-effect--anniversary-stars[data-motion="off"] .seasonal-anniversary-decoration {
+  animation: none;
+}
+
+.seasonal-effect--anniversary-stars[data-motion="off"] .seasonal-anniversary-star {
+  display: none;
+}
+
+.seasonal-effect--anniversary-stars[data-paused="true"] .seasonal-anniversary-star {
+  animation-play-state: paused;
+}
+
+.seasonal-anniversary-navbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-inline: 5px 2px;
+  pointer-events: none;
+}
+
+.seasonal-anniversary-navbar__star {
+  display: inline-block;
+  flex: none;
+  background-image: image-set(
+    url("/seasonal/anniversary/golden-stars.webp") type("image/webp"),
+    url("/seasonal/anniversary/golden-stars.png") type("image/png")
+  );
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 0 3px rgba(255, 243, 198, 0.85));
+  animation: seasonal-anniversary-float 4.8s ease-in-out infinite;
+}
+
+.seasonal-anniversary-navbar__star--large {
+  width: 23px;
+  height: 30px;
+}
+
+.seasonal-anniversary-navbar__star--small {
+  width: 12px;
+  height: 16px;
+  opacity: 0.78;
+  animation-delay: -1.9s;
+}
+
+.seasonal-anniversary-navbar[data-motion="reduced"] .seasonal-anniversary-navbar__star,
+.seasonal-anniversary-navbar[data-motion="off"] .seasonal-anniversary-navbar__star {
+  animation: none;
+}
+
+.seasonal-anniversary-form {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.seasonal-anniversary-art {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.seasonal-anniversary-art__halo {
+  position: absolute;
+  top: clamp(108px, 22vh, 235px);
+  right: clamp(2px, 1vw, 22px);
+  width: min(29vw, 410px);
+  height: min(29vw, 410px);
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 246, 211, 0.56) 0%,
+    rgba(255, 239, 190, 0.18) 46%,
+    transparent 72%
+  );
+  animation: seasonal-anniversary-halo 6s ease-in-out infinite;
+}
+
+.seasonal-anniversary-art__title {
+  position: absolute;
+  top: clamp(120px, 24vh, 255px);
+  right: clamp(18px, 3vw, 56px);
+  display: block;
+  width: clamp(230px, 18vw, 320px);
+  transform: rotate(-2deg);
+  filter: drop-shadow(0 7px 16px rgba(155, 112, 51, 0.14));
+}
+
+.seasonal-anniversary-art__title img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.seasonal-anniversary-art__stars {
+  position: absolute;
+  top: clamp(82px, 17vh, 184px);
+  right: clamp(224px, 20vw, 352px);
+  width: 76px;
+  height: 102px;
+  background-image: image-set(
+    url("/seasonal/anniversary/golden-stars.webp") type("image/webp"),
+    url("/seasonal/anniversary/golden-stars.png") type("image/png")
+  );
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.7;
+  filter: drop-shadow(0 0 8px rgba(255, 245, 199, 0.65));
+  animation: seasonal-anniversary-float 5.5s ease-in-out infinite;
+}
+
+.seasonal-anniversary-form__wing {
+  position: absolute;
+  bottom: 20px;
+  width: 38px;
+  height: 38px;
+  background-image: image-set(
+    url("/seasonal/anniversary/angel-wings.webp") type("image/webp"),
+    url("/seasonal/anniversary/angel-wings.png") type("image/png")
+  );
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 2px 3px rgba(137, 99, 46, 0.2));
+}
+
+.seasonal-anniversary-form__wing--left {
+  left: 26px;
+  transform: rotate(-9deg);
+}
+
+.seasonal-anniversary-form__wing--right {
+  right: 26px;
+  transform: scaleX(-1) rotate(-9deg);
+}
+
+.seasonal-effect--anniversary-stars[data-motion="reduced"] .seasonal-anniversary-art__halo,
+.seasonal-effect--anniversary-stars[data-motion="reduced"] .seasonal-anniversary-art__stars,
+.seasonal-effect--anniversary-stars[data-motion="off"] .seasonal-anniversary-art__halo,
+.seasonal-effect--anniversary-stars[data-motion="off"] .seasonal-anniversary-art__stars {
+  animation: none;
+}
+
+.seasonal-anniversary-card {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.seasonal-anniversary-card__frame {
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(190, 144, 75, 0.34);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 17px rgba(255, 240, 200, 0.22),
+    0 0 10px rgba(255, 235, 184, 0.12);
+}
+
+.seasonal-anniversary-card__star {
+  position: absolute;
+  top: 10px;
+  right: 171px;
+  width: 17px;
+  height: 23px;
+  background-image: image-set(
+    url("/seasonal/anniversary/golden-stars.webp") type("image/webp"),
+    url("/seasonal/anniversary/golden-stars.png") type("image/png")
+  );
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.52;
+  animation: seasonal-anniversary-twinkle 5.7s ease-in-out infinite;
+}
+
+.seasonal-anniversary-card[data-motion="reduced"] .seasonal-anniversary-card__star,
+.seasonal-anniversary-card[data-motion="off"] .seasonal-anniversary-card__star {
+  animation: none;
+}
+
+@keyframes seasonal-anniversary-twinkle {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(0.78) rotate(-7deg);
+  }
+
+  48% {
+    opacity: 0.86;
+    transform: scale(1.12) rotate(4deg);
+  }
+}
+
+@keyframes seasonal-anniversary-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+
+  50% {
+    transform: translateY(-5px) rotate(2deg);
+  }
+}
+
+@keyframes seasonal-anniversary-breathe {
+  0%,
+  100% {
+    opacity: 0.58;
+  }
+
+  50% {
+    opacity: 0.88;
+  }
+}
+
+@keyframes seasonal-anniversary-halo {
+  0%,
+  100% {
+    opacity: 0.66;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@media (max-width: 1199px) {
+  .seasonal-anniversary-art__title {
+    right: 18px;
+    width: 210px;
+  }
+
+  .seasonal-anniversary-art__stars {
+    right: 205px;
+    width: 58px;
+    height: 78px;
+  }
+
+  .seasonal-anniversary-art__halo {
+    width: 280px;
+    height: 280px;
+  }
+}
+
+@media (max-width: 767px) {
+  .seasonal-anniversary-art__title {
+    top: 92px;
+    right: 10px;
+    width: 150px;
+    opacity: 0.82;
+  }
+
+  .seasonal-anniversary-art__stars {
+    display: none;
+  }
+
+  .seasonal-anniversary-art__halo {
+    top: 72px;
+    right: -18px;
+    width: 190px;
+    height: 190px;
+  }
+
+  .seasonal-anniversary-decoration--lace-left {
+    left: -112px;
+    top: 44px;
+    width: 250px;
+    opacity: 0.3;
+  }
+
+  .seasonal-anniversary-decoration--lace-right,
+  .seasonal-anniversary-decoration--rose,
+  .seasonal-anniversary-decoration--stars-left,
+  .seasonal-anniversary-decoration--stars-right,
+  .seasonal-anniversary-decoration--feather {
+    display: none;
+  }
+
+  .seasonal-anniversary-navbar__star--small {
+    display: none;
+  }
+
+  .seasonal-anniversary-form__wing {
+    bottom: 17px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .seasonal-anniversary-form__wing--left {
+    left: 17px;
+  }
+
+  .seasonal-anniversary-form__wing--right {
+    right: 17px;
+  }
+
+  .seasonal-anniversary-card__star {
+    top: 9px;
+    right: 74px;
+    width: 13px;
+    height: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-petal,
+  .seasonal-navbar-accent__dot,
+  .seasonal-anniversary-star,
+  .seasonal-anniversary-decoration,
+  .seasonal-anniversary-navbar__star,
+  .seasonal-anniversary-art__halo,
+  .seasonal-anniversary-art__stars,
+  .seasonal-anniversary-card__star {
+    animation: none !important;
+  }
+}
