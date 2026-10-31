@@ -112,6 +112,18 @@ export function SeasonalProvider({ children, source = defaultSeasonalSource }: S
     return () => controller.abort();
   }, [source]);
 
+  // Refresh exactly after a scheduled boundary so an open page can leave the
+  // anniversary window at midnight without a reload.
+  useEffect(() => {
+    if (!snapshot.nextTransitionAt) return;
+    const delay = Date.parse(snapshot.nextTransitionAt) - Date.now();
+    if (!Number.isFinite(delay)) return;
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, Math.max(50, delay + 50));
+    return () => window.clearTimeout(timer);
+  }, [snapshot.nextTransitionAt, refresh]);
+
   const effectiveSnapshot = useMemo<SeasonalSnapshot>(
     () => (previewThemeId ? { ...snapshot, themeId: previewThemeId } : snapshot),
     [snapshot, previewThemeId]

@@ -12,7 +12,8 @@ ThemeSource ──snapshot──▶ SeasonalProvider ──▶ resolveSeasonalSt
                                   └── 访客偏好 / Reduced Motion / 开发预览
 ```
 
-- `ThemeSource`：当前是 `StaticThemeSource`（永远返回 `themeId: "none"`）。未来换成 HTTP 数据源时不需要改 Provider。
+- `ThemeSource`：当前默认使用 `AnniversaryThemeSource` 按日期提供周年主题；也保留
+  `StaticThemeSource` 供固定主题和测试使用。
 - `registry`：静态白名单，只接受显式注册的本地主题 manifest；未知 id 一律回退 `none`。
 - `resolveSeasonalState`：纯函数，负责校验 snapshot、查表、合并访客偏好与系统 Reduced Motion。
 - `SeasonalProvider`：全站唯一状态源，负责读取数据源、持久化偏好、开发预览和根节点属性
@@ -28,7 +29,8 @@ frontend/src/features/seasonal/
 ├── types.ts                 数据契约
 ├── registry.ts              主题白名单 + Demo 主题
 ├── resolve.ts               纯解析函数
-├── source.ts                StaticThemeSource
+├── schedule.ts              周年主题日期窗口
+├── source.ts                StaticThemeSource / AnniversaryThemeSource
 ├── storage.ts               localStorage 偏好封装
 ├── seasonal-provider.tsx    Provider / useSeasonal
 ├── seasonal-scene.tsx       全局装饰层
@@ -46,6 +48,7 @@ frontend/src/features/seasonal/
 
 ```
 http://localhost:3000/?seasonalPreview=demo
+http://localhost:3000/?seasonalPreview=anniversary
 ```
 
 - `?seasonalPreview=none` 或删除参数即可恢复无主题状态。
@@ -75,6 +78,21 @@ http://localhost:3000/?seasonalPreview=demo
 4. 在 `registry.ts` 中 `registerTheme({ id, name, category, tokens, backgroundAsset, slots, effects })`。
    `backgroundAsset` 必须是打包在 `public/` 下的本地路径，不能是远程 URL。
 5. 主题状态由未来的调度器（或 `seasonalPreview` 预览）通过 `SeasonalSnapshot` 提供。
+
+## 内置周年主题
+
+`anniversary` 主题（周年纪念）在以下时间生效：
+
+```
+2026-10-31T00:00:00+08:00 ≤ now < 2026-11-02T00:00:00+08:00
+```
+
+也就是北京时间 2026 年 10 月 31 日和 11 月 1 日两个完整自然日。采用左闭右开区间，
+避免最后一毫秒的边界歧义；窗口结束后安全回退到 `none`。页面跨越结束时间保持打开时，
+Provider 会在 `nextTransitionAt` 到达后自动刷新主题状态。
+
+周年素材位于 `frontend/public/seasonal/anniversary/`，优先使用 WebP，并保留 PNG
+后备资源。移动端会减少背景和局部装饰，所有装饰都不接收指针事件。
 
 ## 换成 Go API 数据源
 

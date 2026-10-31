@@ -5,9 +5,11 @@ import {
   type SeasonalManifest,
   type SeasonalSlotName,
 } from "./types";
+import { ANNIVERSARY_THEME_ID } from "./schedule";
 
 export const DEFAULT_THEME_ID = "none";
 export const DEMO_THEME_ID = "demo";
+export { ANNIVERSARY_THEME_ID } from "./schedule";
 
 const THEME_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const LOCAL_ASSET_PATTERN = /^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$/;
@@ -142,4 +144,18 @@ registerTheme({
   backgroundAsset: "/seasonal/demo-backdrop.svg",
   slots: ["navbar-accent"],
   effects: ["demo-petals"],
+});
+
+registerTheme({
+  id: ANNIVERSARY_THEME_ID,
+  name: "周年纪念",
+  category: "festival",
+  tokens: {
+    accent: "#b98a4d",
+    glow: "rgba(255, 235, 190, 0.58)",
+    particle: "#d7b676",
+    opacity: 0.78,
+  },
+  slots: ["navbar-accent", "ask-form-decoration", "post-card-corner"],
+  effects: ["anniversary-stars"],
 });

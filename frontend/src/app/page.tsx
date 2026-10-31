@@ -30,6 +30,7 @@ import { formatBytes, formatDuration, formatSpeed } from '@/lib/format';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAccountAuth } from '@/lib/account-auth';
 import { CircleHelp } from 'lucide-react';
+import { SeasonalSlot } from '@/features/seasonal';
 
 export default function HomePage() {
 	const { user: accountUser, openAccountDialog } = useAccountAuth();
@@ -266,6 +267,7 @@ export default function HomePage() {
     <div className="flex flex-col w-full items-center">
       {/* Submit Form */}
       <div className="ask max-w-[600px] w-5/6 relative my-8 p-5 flex flex-col rounded-md fabric-form transition-all duration-220">
+        <SeasonalSlot name="ask-form-decoration" />
         {/* Tag Select */}
         <div className="mb-2.5">
           <div className="flex items-center justify-between">

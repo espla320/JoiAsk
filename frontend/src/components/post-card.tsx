@@ -7,6 +7,7 @@ import { EmojiPicker } from './emoji-picker';
 import { ImagePreview } from './image-preview';
 import { FormattedContent } from './formatted-content';
 import { resolveMediaUrl } from '@joiask/content-markup';
+import { SeasonalSlot } from '@/features/seasonal';
 
 interface RemoteCursor {
   clientId: string;
@@ -367,6 +368,8 @@ export function PostCard({ data, isLoggedIn = false, emojiUpdates, archiveUpdate
               </div>
             </div>
           </div>
+
+          <SeasonalSlot name="post-card-corner" />
 
           {/* Rainbow textures */}
           {data.is_rainbow && (

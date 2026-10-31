@@ -41,6 +41,8 @@ export default function DemoPetals({ motion, tokens }: SeasonalEffectProps) {
     []
   );
 
+  if (motion === "off") return null;
+
   return (
     <div
       className="seasonal-effect seasonal-effect--petals"

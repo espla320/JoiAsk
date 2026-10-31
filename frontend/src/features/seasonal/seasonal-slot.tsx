@@ -19,6 +19,20 @@ const SLOT_REGISTRY: Partial<
       loading: () => null,
     }),
   },
+  anniversary: {
+    "navbar-accent": dynamic(() => import("./slots/anniversary-navbar-accent"), {
+      ssr: false,
+      loading: () => null,
+    }),
+    "ask-form-decoration": dynamic(() => import("./slots/anniversary-form-decoration"), {
+      ssr: false,
+      loading: () => null,
+    }),
+    "post-card-corner": dynamic(() => import("./slots/anniversary-card-corner"), {
+      ssr: false,
+      loading: () => null,
+    }),
+  },
 };
 
 export function SeasonalSlot({ name }: SeasonalSlotProps) {

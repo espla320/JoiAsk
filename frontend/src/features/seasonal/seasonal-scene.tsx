@@ -11,14 +11,14 @@ import { useSeasonal } from "./seasonal-provider";
  */
 export function SeasonalScene() {
   const { state } = useSeasonal();
-  const { manifest, animationsEnabled, motionLevel } = state;
+  const { manifest, motionLevel } = state;
   if (!manifest) return null;
 
-  const effects = animationsEnabled
-    ? manifest.effects
-        .map((effectId) => getSeasonalEffectComponent(effectId))
-        .filter((component): component is ComponentType<SeasonalEffectProps> => component !== null)
-    : [];
+  // Effects may keep a static version when motion is off; each renderer owns
+  // that decision so the global scene can retain non-animated decorations.
+  const effects = manifest.effects
+    .map((effectId) => getSeasonalEffectComponent(effectId))
+    .filter((component): component is ComponentType<SeasonalEffectProps> => component !== null);
 
   return (
     <div
@@ -39,7 +39,7 @@ export function SeasonalScene() {
       {effects.map((Effect, index) => (
         <Effect
           key={`${manifest.id}-${index}`}
-          motion={motionLevel === "reduced" ? "reduced" : "full"}
+          motion={motionLevel}
           tokens={manifest.tokens}
         />
       ))}

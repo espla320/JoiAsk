@@ -6,7 +6,7 @@ import type {
 } from "../types";
 
 export interface SeasonalEffectProps {
-  motion: Exclude<SeasonalMotionLevel, "off">;
+  motion: SeasonalMotionLevel;
   tokens: SeasonalTokens;
 }
 

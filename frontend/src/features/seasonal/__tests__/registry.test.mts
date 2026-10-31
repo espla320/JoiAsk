@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ANNIVERSARY_THEME_ID,
   DEFAULT_THEME_ID,
   DEMO_THEME_ID,
   getRegisteredThemeIds,
@@ -32,6 +33,14 @@ test("looks up the registered demo theme", () => {
   assert.equal(demo.id, DEMO_THEME_ID);
   assert.deepEqual(demo.effects, ["demo-petals"]);
   assert.ok(getRegisteredThemeIds().includes(DEMO_THEME_ID));
+});
+
+test("looks up the registered anniversary theme", () => {
+  const anniversary = getTheme(ANNIVERSARY_THEME_ID);
+  assert.ok(anniversary);
+  assert.equal(anniversary.name, "周年纪念");
+  assert.deepEqual(anniversary.effects, ["anniversary-stars"]);
+  assert.ok(anniversary.slots.includes("ask-form-decoration"));
 });
 
 test("unknown and sentinel theme ids resolve to null", () => {

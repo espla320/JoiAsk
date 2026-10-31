@@ -5,12 +5,13 @@ export type SeasonalCategory = "season" | "festival";
 export const SEASONAL_SLOT_NAMES = [
   "navbar-accent",
   "post-card-corner",
+  "ask-form-decoration",
   "submit-success",
 ] as const;
 
 export type SeasonalSlotName = (typeof SEASONAL_SLOT_NAMES)[number];
 
-export const SEASONAL_EFFECT_IDS = ["demo-petals"] as const;
+export const SEASONAL_EFFECT_IDS = ["demo-petals", "anniversary-stars"] as const;
 
 export type SeasonalEffectId = (typeof SEASONAL_EFFECT_IDS)[number];
 
