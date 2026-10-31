@@ -1,4 +1,4 @@
-export const ANNIVERSARY_THEME_ID = "anniversary";
+export const ANNIVERSARY_THEME_ID = "anniversary-2026";
 
 // The anniversary lasts for both complete natural days in China Standard Time.
 // The exclusive end avoids millisecond-boundary ambiguity.

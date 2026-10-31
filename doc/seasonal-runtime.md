@@ -48,7 +48,7 @@ frontend/src/features/seasonal/
 
 ```
 http://localhost:3000/?seasonalPreview=demo
-http://localhost:3000/?seasonalPreview=anniversary
+http://localhost:3000/?seasonalPreview=anniversary-2026
 ```
 
 - `?seasonalPreview=none` 或删除参数即可恢复无主题状态。
@@ -81,7 +81,7 @@ http://localhost:3000/?seasonalPreview=anniversary
 
 ## 内置周年主题
 
-`anniversary` 主题（周年纪念）在以下时间生效：
+`anniversary-2026` 主题（2026 周年纪念）在以下时间生效：
 
 ```
 2026-10-31T00:00:00+08:00 ≤ now < 2026-11-02T00:00:00+08:00
