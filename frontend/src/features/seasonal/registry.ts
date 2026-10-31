@@ -148,7 +148,7 @@ registerTheme({
 
 registerTheme({
   id: ANNIVERSARY_THEME_ID,
-  name: "周年纪念",
+  name: "2026 周年纪念",
   category: "festival",
   tokens: {
     accent: "#b98a4d",

@@ -38,7 +38,7 @@ test("looks up the registered demo theme", () => {
 test("looks up the registered anniversary theme", () => {
   const anniversary = getTheme(ANNIVERSARY_THEME_ID);
   assert.ok(anniversary);
-  assert.equal(anniversary.name, "周年纪念");
+  assert.equal(anniversary.name, "2026 周年纪念");
   assert.deepEqual(anniversary.effects, ["anniversary-stars"]);
   assert.ok(anniversary.slots.includes("ask-form-decoration"));
 });

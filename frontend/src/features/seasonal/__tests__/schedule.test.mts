@@ -36,7 +36,7 @@ test("anniversary source returns the scheduled theme and transition", async () =
   );
   assert.deepEqual(await source.getSnapshot(), {
     version: 1,
-    themeId: "anniversary",
+    themeId: "anniversary-2026",
     effectsEnabled: true,
     nextTransitionAt: ANNIVERSARY_END_EXCLUSIVE,
   });

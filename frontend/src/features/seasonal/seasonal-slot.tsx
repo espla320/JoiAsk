@@ -19,7 +19,7 @@ const SLOT_REGISTRY: Partial<
       loading: () => null,
     }),
   },
-  anniversary: {
+  "anniversary-2026": {
     "navbar-accent": dynamic(() => import("./slots/anniversary-navbar-accent"), {
       ssr: false,
       loading: () => null,
