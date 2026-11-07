@@ -1,30 +1,42 @@
-export const ANNIVERSARY_THEME_ID = "anniversary-2026";
+import {
+  ANNIVERSARY_THEME_ID,
+  EARLY_FALL_THEME_ID,
+  LATE_FALL_THEME_ID,
+} from "./theme-ids";
+import type { SeasonalScheduleWindow } from "./schedule-resolver";
 
-// The anniversary lasts for both complete natural days in China Standard Time.
-// The exclusive end avoids millisecond-boundary ambiguity.
+export {
+  ANNIVERSARY_THEME_ID,
+  EARLY_FALL_THEME_ID,
+  LATE_FALL_THEME_ID,
+} from "./theme-ids";
+
 export const ANNIVERSARY_START = "2026-10-31T00:00:00+08:00";
 export const ANNIVERSARY_END_EXCLUSIVE = "2026-11-02T00:00:00+08:00";
 
-const ANNIVERSARY_START_MS = Date.parse(ANNIVERSARY_START);
-const ANNIVERSARY_END_MS = Date.parse(ANNIVERSARY_END_EXCLUSIVE);
+export const ANNIVERSARY_SCHEDULE: SeasonalScheduleWindow = {
+  kind: "fixed",
+  themeId: ANNIVERSARY_THEME_ID,
+  start: ANNIVERSARY_START,
+  end: ANNIVERSARY_END_EXCLUSIVE,
+  priority: 100,
+};
 
-export function isAnniversaryActive(now: Date | number = new Date()): boolean {
-  const timestamp = now instanceof Date ? now.getTime() : now;
-  return (
-    Number.isFinite(timestamp) &&
-    timestamp >= ANNIVERSARY_START_MS &&
-    timestamp < ANNIVERSARY_END_MS
-  );
-}
-
-/**
- * Returns the next date at which this fixed window changes state. There is no
- * transition after the window closes because this is a one-off anniversary.
- */
-export function getAnniversaryTransition(now: Date | number = new Date()): string | undefined {
-  const timestamp = now instanceof Date ? now.getTime() : now;
-  if (!Number.isFinite(timestamp)) return undefined;
-  if (timestamp < ANNIVERSARY_START_MS) return ANNIVERSARY_START;
-  if (timestamp < ANNIVERSARY_END_MS) return ANNIVERSARY_END_EXCLUSIVE;
-  return undefined;
-}
+/** Higher priority wins when windows overlap. Annual dates use China time. */
+export const SEASONAL_SCHEDULES: readonly SeasonalScheduleWindow[] = [
+  {
+    kind: "annual",
+    themeId: EARLY_FALL_THEME_ID,
+    start: [9, 1],
+    end: [10, 15],
+    priority: 10,
+  },
+  {
+    kind: "annual",
+    themeId: LATE_FALL_THEME_ID,
+    start: [10, 15],
+    end: [12, 1],
+    priority: 10,
+  },
+  ANNIVERSARY_SCHEDULE,
+];

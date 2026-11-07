@@ -4,6 +4,8 @@ import {
   ANNIVERSARY_THEME_ID,
   DEFAULT_THEME_ID,
   DEMO_THEME_ID,
+  EARLY_FALL_THEME_ID,
+  LATE_FALL_THEME_ID,
   getRegisteredThemeIds,
   getTheme,
   isValidThemeId,
@@ -16,6 +18,7 @@ function manifest(id: string): SeasonalManifest {
     id,
     name: "Test theme",
     category: "season",
+    renderer: "demo",
     tokens: {
       accent: "#123456",
       glow: "rgba(0, 0, 0, 0.2)",
@@ -43,6 +46,21 @@ test("looks up the registered anniversary theme", () => {
   assert.ok(anniversary.slots.includes("ask-form-decoration"));
 });
 
+test("registers early and late fall as two independent themes", () => {
+  const earlyFall = getTheme(EARLY_FALL_THEME_ID);
+  const lateFall = getTheme(LATE_FALL_THEME_ID);
+  assert.ok(earlyFall);
+  assert.ok(lateFall);
+  assert.equal(earlyFall.name, "早秋桂香");
+  assert.equal(lateFall.name, "晚秋枫影");
+  assert.deepEqual(earlyFall.effects, ["fall-leaves"]);
+  assert.deepEqual(lateFall.effects, ["fall-leaves"]);
+  assert.equal(earlyFall.renderer, "fall");
+  assert.equal(lateFall.renderer, "fall");
+  assert.ok(earlyFall.slots.includes("post-card-corner"));
+  assert.ok(lateFall.slots.includes("ask-form-decoration"));
+});
+
 test("unknown and sentinel theme ids resolve to null", () => {
   assert.equal(getTheme("does-not-exist"), null);
   assert.equal(getTheme(DEFAULT_THEME_ID), null);
@@ -64,6 +82,10 @@ test("rejects duplicate, malformed and remote manifests", () => {
   assert.throws(
     () => registerTheme({ ...manifest("unknown-slot"), slots: ["nope"] as never }),
     /unknown slot/
+  );
+  assert.throws(
+    () => registerTheme({ ...manifest("unknown-renderer"), renderer: "nope" as never }),
+    /unknown renderer/
   );
 });
 

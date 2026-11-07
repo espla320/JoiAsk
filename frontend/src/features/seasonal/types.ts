@@ -11,7 +11,15 @@ export const SEASONAL_SLOT_NAMES = [
 
 export type SeasonalSlotName = (typeof SEASONAL_SLOT_NAMES)[number];
 
-export const SEASONAL_EFFECT_IDS = ["demo-petals", "anniversary-stars"] as const;
+export const SEASONAL_RENDERER_IDS = ["demo", "anniversary", "fall"] as const;
+
+export type SeasonalRendererId = (typeof SEASONAL_RENDERER_IDS)[number];
+
+export const SEASONAL_EFFECT_IDS = [
+  "demo-petals",
+  "anniversary-stars",
+  "fall-leaves",
+] as const;
 
 export type SeasonalEffectId = (typeof SEASONAL_EFFECT_IDS)[number];
 
@@ -42,6 +50,7 @@ export interface SeasonalManifest {
   id: string;
   name: string;
   category: SeasonalCategory;
+  renderer: SeasonalRendererId;
   tokens: SeasonalTokens;
   /** Optional, must be a bundled local path (for example /seasonal/bg.svg). */
   backgroundAsset?: string;

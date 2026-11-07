@@ -1,7 +1,7 @@
 # Seasonal Runtime
 
-可扩展的季节 / 节日装扮运行时。它**只负责渲染**：节日排期、优先级和管理员配置属于后续的
-`seasonal-scheduler` / `seasonal-admin`，本模块只接收已经解析好的主题状态。
+可扩展的季节 / 节日装扮运行时。当前附带一个配置驱动的前端日历数据源；未来接入
+`seasonal-scheduler` / `seasonal-admin` 后，只需替换 `ThemeSource`，渲染层无需修改。
 
 ## 数据流
 
@@ -12,12 +12,12 @@ ThemeSource ──snapshot──▶ SeasonalProvider ──▶ resolveSeasonalSt
                                   └── 访客偏好 / Reduced Motion / 开发预览
 ```
 
-- `ThemeSource`：当前默认使用 `AnniversaryThemeSource` 按日期提供周年主题；也保留
+- `ThemeSource`：当前默认使用 `SeasonalCalendarSource` 按日期提供秋季 / 周年主题；也保留
   `StaticThemeSource` 供固定主题和测试使用。
 - `registry`：静态白名单，只接受显式注册的本地主题 manifest；未知 id 一律回退 `none`。
 - `resolveSeasonalState`：纯函数，负责校验 snapshot、查表、合并访客偏好与系统 Reduced Motion。
 - `SeasonalProvider`：全站唯一状态源，负责读取数据源、持久化偏好、开发预览和根节点属性
-  `data-seasonal-theme` / `data-seasonal-motion`。
+  `data-seasonal-theme` / `data-seasonal-renderer` / `data-seasonal-motion` 以及只读季节色变量。
 - `SeasonalScene`：唯一的全局装饰层（`position: fixed; z-index: -1; pointer-events: none`），
   画布背景之上、页面内容之下，不会遮挡 Navbar、卡片或弹窗。
 - `SeasonalSlot`：局部装饰插槽，只有主题 manifest 声明且组件已显式注册时才会渲染。
@@ -27,10 +27,13 @@ ThemeSource ──snapshot──▶ SeasonalProvider ──▶ resolveSeasonalSt
 ```
 frontend/src/features/seasonal/
 ├── types.ts                 数据契约
+├── theme-ids.ts             主题 id 常量
 ├── registry.ts              主题白名单 + Demo 主题
 ├── resolve.ts               纯解析函数
-├── schedule.ts              周年主题日期窗口
-├── source.ts                StaticThemeSource / AnniversaryThemeSource
+├── schedule.ts              简单的年度 / 固定日期排期配置
+├── schedule-resolver.ts     通用优先级、跨年与边界解析器
+├── source.ts                Static / Calendar / Anniversary ThemeSource
+├── themes/                  主题 manifest 与素材配置
 ├── storage.ts               localStorage 偏好封装
 ├── seasonal-provider.tsx    Provider / useSeasonal
 ├── seasonal-scene.tsx       全局装饰层
@@ -49,6 +52,8 @@ frontend/src/features/seasonal/
 ```
 http://localhost:3000/?seasonalPreview=demo
 http://localhost:3000/?seasonalPreview=anniversary-2026
+http://localhost:3000/?seasonalPreview=early-fall
+http://localhost:3000/?seasonalPreview=late-fall
 ```
 
 - `?seasonalPreview=none` 或删除参数即可恢复无主题状态。
@@ -68,16 +73,19 @@ http://localhost:3000/?seasonalPreview=anniversary-2026
 
 偏好保存在 `joiask:seasonal:preferences:v1`，localStorage 不可用或内容损坏时自动回退默认值。
 
-## 添加一个主题（例如 Halloween）
+## 添加主题
 
-1. 在 `effects/` 新增效果组件（CSS/SVG，限制粒子数量，`aria-hidden`，只动画 `transform` / `opacity`）。
-2. 在 `types.ts` 的 `SEASONAL_EFFECT_IDS` 中加入 effect id，并在 `effects/effect-registry.ts`
-   用 `next/dynamic` 注册（保持按需加载）。
-3. 如有局部装饰，在 `types.ts` 的 `SEASONAL_SLOT_NAMES` 中选用既有 slot，并在
-   `seasonal-slot.tsx` 的 `SLOT_REGISTRY` 中注册对应组件。
-4. 在 `registry.ts` 中 `registerTheme({ id, name, category, tokens, backgroundAsset, slots, effects })`。
-   `backgroundAsset` 必须是打包在 `public/` 下的本地路径，不能是远程 URL。
-5. 主题状态由未来的调度器（或 `seasonalPreview` 预览）通过 `SeasonalSnapshot` 提供。
+与现有视觉族相同的主题（例如第三个秋季阶段）只需要：
+
+1. 在 `theme-ids.ts` 增加 id。
+2. 在对应的 `themes/*.ts` 增加 manifest 和本地素材配置，并复用 `renderer: "fall"`。
+3. 如需自动排期，在 `schedule.ts` 的 `SEASONAL_SCHEDULES` 增加年度或固定窗口。
+
+只有全新的视觉体系才需要在 `types.ts` 增加 renderer/effect 白名单，并在 `effects/`、`slots/`
+及其注册表中增加按需加载组件。远程资源和任意组件注入仍不允许。
+
+年度窗口使用北京时间月/日，支持跨年范围；固定活动使用完整时间戳。窗口重叠时 `priority`
+较高者生效，resolver 同时返回最近的 `nextTransitionAt`。
 
 ## 内置周年主题
 
@@ -88,11 +96,24 @@ http://localhost:3000/?seasonalPreview=anniversary-2026
 ```
 
 也就是北京时间 2026 年 10 月 31 日和 11 月 1 日两个完整自然日。采用左闭右开区间，
-避免最后一毫秒的边界歧义；窗口结束后安全回退到 `none`。页面跨越结束时间保持打开时，
-Provider 会在 `nextTransitionAt` 到达后自动刷新主题状态。
+避免最后一毫秒的边界歧义；窗口结束后由日历数据源恢复当时的季节主题（独立使用
+`AnniversaryThemeSource` 时回退到 `none`）。页面跨越结束时间保持打开时，Provider 会在
+`nextTransitionAt` 到达后自动刷新主题状态。
 
 周年素材位于 `frontend/public/seasonal/anniversary/`，优先使用 WebP，并保留 PNG
 后备资源。移动端会减少背景和局部装饰，所有装饰都不接收指针事件。
+
+## 内置秋季主题
+
+秋季作为两个独立主题注册，不使用 `variantId`：
+
+- `early-fall`：北京时间每年 9 月 1 日 00:00 至 10 月 15 日 00:00。
+- `late-fall`：北京时间每年 10 月 15 日 00:00 至 12 月 1 日 00:00。
+
+周年主题的固定窗口优先于秋季主题；窗口结束后会自动恢复 `late-fall`。秋季素材位于
+`frontend/public/seasonal/fall/`，桌面端显示枝条、艺术字、角饰和少量飘落素材，移动端自动减少
+粒子和大型装饰。动画关闭后仍保留静态主题角饰。两个主题共享 `fall` renderer，各自的素材、
+构图和 manifest 集中在 `themes/fall.ts`。
 
 ## 换成 Go API 数据源
 

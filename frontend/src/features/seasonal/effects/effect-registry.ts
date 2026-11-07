@@ -16,9 +16,15 @@ const AnniversaryStars = dynamic(() => import("./anniversary-stars"), {
   loading: () => null,
 });
 
+const FallLeaves = dynamic(() => import("./fall-leaves"), {
+  ssr: false,
+  loading: () => null,
+});
+
 const EFFECT_COMPONENTS: Record<SeasonalEffectId, ComponentType<SeasonalEffectProps>> = {
   "demo-petals": DemoPetals,
   "anniversary-stars": AnniversaryStars,
+  "fall-leaves": FallLeaves,
 };
 
 export function isSeasonalEffectId(value: unknown): value is SeasonalEffectId {
