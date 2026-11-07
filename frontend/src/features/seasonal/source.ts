@@ -4,10 +4,10 @@ import {
   type ThemeSource,
 } from "./types";
 import {
-  ANNIVERSARY_THEME_ID,
-  getAnniversaryTransition,
-  isAnniversaryActive,
+  ANNIVERSARY_SCHEDULE,
+  SEASONAL_SCHEDULES,
 } from "./schedule";
+import { resolveSeasonalSchedule } from "./schedule-resolver";
 
 export const DEFAULT_SEASONAL_SNAPSHOT: SeasonalSnapshot = Object.freeze({
   version: SEASONAL_SNAPSHOT_VERSION,
@@ -39,17 +39,34 @@ export class AnniversaryThemeSource implements ThemeSource {
   constructor(private readonly now: () => Date = () => new Date()) {}
 
   async getSnapshot(): Promise<SeasonalSnapshot> {
-    const current = this.now();
-    const timestamp = current.getTime();
+    const resolved = resolveSeasonalSchedule([ANNIVERSARY_SCHEDULE], this.now());
     const snapshot: SeasonalSnapshot = {
       version: SEASONAL_SNAPSHOT_VERSION,
-      themeId: isAnniversaryActive(timestamp) ? ANNIVERSARY_THEME_ID : "none",
+      themeId: resolved.themeId ?? "none",
       effectsEnabled: true,
     };
-    const nextTransitionAt = getAnniversaryTransition(timestamp);
-    if (nextTransitionAt) snapshot.nextTransitionAt = nextTransitionAt;
+    if (resolved.nextTransitionAt) snapshot.nextTransitionAt = resolved.nextTransitionAt;
     return snapshot;
   }
 }
 
-export const defaultSeasonalSource: ThemeSource = new AnniversaryThemeSource();
+/**
+ * Default calendar source. The one-off anniversary temporarily takes priority
+ * over the annual fall theme, then late fall resumes after the festival ends.
+ */
+export class SeasonalCalendarSource implements ThemeSource {
+  constructor(private readonly now: () => Date = () => new Date()) {}
+
+  async getSnapshot(): Promise<SeasonalSnapshot> {
+    const resolved = resolveSeasonalSchedule(SEASONAL_SCHEDULES, this.now());
+    const snapshot: SeasonalSnapshot = {
+      version: SEASONAL_SNAPSHOT_VERSION,
+      themeId: resolved.themeId ?? "none",
+      effectsEnabled: true,
+    };
+    if (resolved.nextTransitionAt) snapshot.nextTransitionAt = resolved.nextTransitionAt;
+    return snapshot;
+  }
+}
+
+export const defaultSeasonalSource: ThemeSource = new SeasonalCalendarSource();

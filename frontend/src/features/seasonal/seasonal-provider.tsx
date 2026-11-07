@@ -116,12 +116,28 @@ export function SeasonalProvider({ children, source = defaultSeasonalSource }: S
   // anniversary window at midnight without a reload.
   useEffect(() => {
     if (!snapshot.nextTransitionAt) return;
-    const delay = Date.parse(snapshot.nextTransitionAt) - Date.now();
-    if (!Number.isFinite(delay)) return;
-    const timer = window.setTimeout(() => {
-      void refresh();
-    }, Math.max(50, delay + 50));
-    return () => window.clearTimeout(timer);
+    const transitionAt = Date.parse(snapshot.nextTransitionAt);
+    if (!Number.isFinite(transitionAt)) return;
+    let timer: number | undefined;
+    let cancelled = false;
+    const MAX_TIMEOUT = 2_147_000_000;
+    const scheduleNextChunk = () => {
+      if (cancelled) return;
+      const delay = transitionAt - Date.now();
+      if (delay <= 0) {
+        void refresh();
+        return;
+      }
+      timer = window.setTimeout(
+        scheduleNextChunk,
+        Math.min(MAX_TIMEOUT, Math.max(50, delay + 50))
+      );
+    };
+    scheduleNextChunk();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, [snapshot.nextTransitionAt, refresh]);
 
   const effectiveSnapshot = useMemo<SeasonalSnapshot>(
@@ -143,14 +159,26 @@ export function SeasonalProvider({ children, source = defaultSeasonalSource }: S
     const root = document.documentElement;
     if (state.manifest) {
       root.dataset.seasonalTheme = state.themeId;
+      root.dataset.seasonalRenderer = state.manifest.renderer;
       root.dataset.seasonalMotion = state.motionLevel;
+      root.style.setProperty("--seasonal-accent", state.manifest.tokens.accent);
+      root.style.setProperty("--seasonal-glow", state.manifest.tokens.glow);
+      root.style.setProperty("--seasonal-particle", state.manifest.tokens.particle);
     } else {
       delete root.dataset.seasonalTheme;
+      delete root.dataset.seasonalRenderer;
       delete root.dataset.seasonalMotion;
+      root.style.removeProperty("--seasonal-accent");
+      root.style.removeProperty("--seasonal-glow");
+      root.style.removeProperty("--seasonal-particle");
     }
     return () => {
       delete root.dataset.seasonalTheme;
+      delete root.dataset.seasonalRenderer;
       delete root.dataset.seasonalMotion;
+      root.style.removeProperty("--seasonal-accent");
+      root.style.removeProperty("--seasonal-glow");
+      root.style.removeProperty("--seasonal-particle");
     };
   }, [state.manifest, state.motionLevel, state.themeId]);
 

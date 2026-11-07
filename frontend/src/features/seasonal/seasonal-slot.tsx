@@ -3,15 +3,35 @@
 import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 import { useSeasonal } from "./seasonal-provider";
-import type { SeasonalSlotName, SeasonalSlotRendererProps } from "./types";
+import type {
+  SeasonalSlotName,
+  SeasonalRendererId,
+  SeasonalSlotRendererProps,
+} from "./types";
 
 interface SeasonalSlotProps {
   name: SeasonalSlotName;
 }
 
+const FallNavbarAccent = dynamic(() => import("./slots/fall-navbar-accent"), {
+  ssr: false,
+  loading: () => null,
+});
+
+const FallFormDecoration = dynamic(() => import("./slots/fall-form-decoration"), {
+  ssr: false,
+  loading: () => null,
+});
+
+const FallCardCorner = dynamic(() => import("./slots/fall-card-corner"), {
+  ssr: false,
+  loading: () => null,
+});
+
 // Only explicitly registered slot components can be rendered.
-const SLOT_REGISTRY: Partial<
-  Record<string, Partial<Record<SeasonalSlotName, ComponentType<SeasonalSlotRendererProps>>>>
+const SLOT_REGISTRY: Record<
+  SeasonalRendererId,
+  Partial<Record<SeasonalSlotName, ComponentType<SeasonalSlotRendererProps>>>
 > = {
   demo: {
     "navbar-accent": dynamic(() => import("./slots/demo-navbar-accent"), {
@@ -19,7 +39,7 @@ const SLOT_REGISTRY: Partial<
       loading: () => null,
     }),
   },
-  "anniversary-2026": {
+  anniversary: {
     "navbar-accent": dynamic(() => import("./slots/anniversary-navbar-accent"), {
       ssr: false,
       loading: () => null,
@@ -33,6 +53,11 @@ const SLOT_REGISTRY: Partial<
       loading: () => null,
     }),
   },
+  fall: {
+    "navbar-accent": FallNavbarAccent,
+    "ask-form-decoration": FallFormDecoration,
+    "post-card-corner": FallCardCorner,
+  },
 };
 
 export function SeasonalSlot({ name }: SeasonalSlotProps) {
@@ -43,7 +68,7 @@ export function SeasonalSlot({ name }: SeasonalSlotProps) {
     return null;
   }
 
-  const SlotComponent = SLOT_REGISTRY[manifest.id]?.[name];
+  const SlotComponent = SLOT_REGISTRY[manifest.renderer][name];
   if (!SlotComponent) return null;
 
   return (

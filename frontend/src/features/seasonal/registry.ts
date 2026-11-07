@@ -1,15 +1,21 @@
 import {
   SEASONAL_EFFECT_IDS,
+  SEASONAL_RENDERER_IDS,
   SEASONAL_SLOT_NAMES,
   type SeasonalEffectId,
   type SeasonalManifest,
   type SeasonalSlotName,
 } from "./types";
-import { ANNIVERSARY_THEME_ID } from "./schedule";
+import { FALL_THEME_MANIFESTS } from "./themes/fall";
+import { ANNIVERSARY_THEME_ID } from "./theme-ids";
 
 export const DEFAULT_THEME_ID = "none";
 export const DEMO_THEME_ID = "demo";
-export { ANNIVERSARY_THEME_ID } from "./schedule";
+export {
+  ANNIVERSARY_THEME_ID,
+  EARLY_FALL_THEME_ID,
+  LATE_FALL_THEME_ID,
+} from "./theme-ids";
 
 const THEME_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const LOCAL_ASSET_PATTERN = /^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$/;
@@ -100,6 +106,9 @@ export function registerTheme(manifest: SeasonalManifest): void {
   if (manifest.category !== "season" && manifest.category !== "festival") {
     throw new Error("[seasonal] category must be season or festival");
   }
+  if (!SEASONAL_RENDERER_IDS.includes(manifest.renderer)) {
+    throw new Error(`[seasonal] unknown renderer: ${String(manifest.renderer)}`);
+  }
   assertTokens(manifest.tokens);
   if (manifest.backgroundAsset !== undefined) {
     assertNonEmptyString(manifest.backgroundAsset, "backgroundAsset");
@@ -135,6 +144,7 @@ registerTheme({
   id: DEMO_THEME_ID,
   name: "樱花微光（示例）",
   category: "season",
+  renderer: "demo",
   tokens: {
     accent: "#c77b97",
     glow: "rgba(199, 123, 151, 0.35)",
@@ -150,6 +160,7 @@ registerTheme({
   id: ANNIVERSARY_THEME_ID,
   name: "2026 周年纪念",
   category: "festival",
+  renderer: "anniversary",
   tokens: {
     accent: "#b98a4d",
     glow: "rgba(255, 235, 190, 0.58)",
@@ -159,3 +170,5 @@ registerTheme({
   slots: ["navbar-accent", "ask-form-decoration", "post-card-corner"],
   effects: ["anniversary-stars"],
 });
+
+for (const manifest of FALL_THEME_MANIFESTS) registerTheme(manifest);

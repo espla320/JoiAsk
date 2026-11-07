@@ -458,7 +458,273 @@
   }
 }
 
+/* ── Early / late fall ──────────────────────────────────────────────── */
+
+html[data-seasonal-renderer="fall"] body {
+  background-image:
+    radial-gradient(circle at 50% 18%, rgba(255, 250, 239, 0.6), transparent 42%),
+    url(/fabric-texture.svg),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(195, 145, 83, 0.08) 3px,
+      rgba(195, 145, 83, 0.08) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 3px,
+      rgba(195, 145, 83, 0.06) 3px,
+      rgba(195, 145, 83, 0.06) 4px
+    );
+  background-size: auto, 100px 100px, 4px 4px, 4px 4px;
+  background-attachment: fixed;
+}
+
+html[data-seasonal-renderer="fall"] .fabric-nav {
+  background-color: color-mix(in srgb, var(--seasonal-accent) 42%, #68482f);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--seasonal-glow) 60%, transparent);
+}
+
+html[data-seasonal-renderer="fall"] .ask.fabric-form,
+html[data-seasonal-renderer="fall"] .card.fabric-card {
+  border-color: color-mix(in srgb, var(--seasonal-accent) 64%, transparent);
+}
+
+.seasonal-effect--fall {
+  overflow: hidden;
+}
+
+.seasonal-fall-scene-art {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.seasonal-fall-scene-art img,
+.seasonal-fall-particle img,
+.seasonal-fall-navbar img,
+.seasonal-fall-form img,
+.seasonal-fall-card-corner img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.seasonal-fall-scene-art--hero {
+  top: 52px;
+  left: -62px;
+  width: clamp(260px, 25vw, 430px);
+  filter: drop-shadow(0 7px 13px rgba(119, 75, 34, 0.11));
+  transform: rotate(-3deg);
+  animation: seasonal-fall-branch-breathe 8s ease-in-out infinite;
+}
+
+.seasonal-effect--fall[data-composition="late"] .seasonal-fall-scene-art--hero {
+  top: 55px;
+  left: -34px;
+  width: clamp(280px, 27vw, 450px);
+  filter: drop-shadow(0 7px 13px rgba(103, 55, 31, 0.13));
+  transform: rotate(-5deg);
+}
+
+.seasonal-fall-scene-art--wordmark {
+  top: clamp(128px, 20vh, 220px);
+  right: clamp(26px, 5vw, 94px);
+  width: clamp(180px, 18vw, 300px);
+  opacity: 0.86;
+  filter: drop-shadow(0 6px 13px rgba(133, 75, 29, 0.12));
+  transform: rotate(-2deg);
+}
+
+.seasonal-effect--fall[data-composition="late"] .seasonal-fall-scene-art--wordmark {
+  opacity: 0.9;
+  filter: drop-shadow(0 6px 13px rgba(121, 55, 31, 0.14));
+}
+
+.seasonal-fall-scene-art--ground {
+  right: -34px;
+  bottom: -62px;
+  width: clamp(220px, 23vw, 390px);
+  opacity: 0.78;
+  filter: drop-shadow(0 -4px 12px rgba(130, 77, 35, 0.09));
+  transform: rotate(3deg);
+}
+
+.seasonal-effect--fall[data-composition="early"] .seasonal-fall-scene-art--ground {
+  right: auto;
+  left: -48px;
+  transform: scaleX(-1) rotate(2deg);
+  opacity: 0.62;
+}
+
+.seasonal-fall-wind {
+  position: absolute;
+  display: block;
+  width: 190px;
+  height: 72px;
+  background: url("/seasonal/fall/shared/wind-trail.svg") center / contain no-repeat;
+  opacity: 0.36;
+}
+
+.seasonal-fall-wind--left {
+  top: 42%;
+  left: 7%;
+  transform: rotate(8deg) scale(0.82);
+}
+
+.seasonal-fall-wind--right {
+  top: 58%;
+  right: 8%;
+  transform: rotate(-10deg) scaleX(-1);
+}
+
+.seasonal-fall-particle {
+  position: absolute;
+  top: -12%;
+  display: block;
+  height: auto;
+  opacity: 0;
+  filter: drop-shadow(0 4px 5px rgba(111, 71, 36, 0.13));
+  animation: seasonal-fall-leaf-drift var(--seasonal-fall-duration) linear infinite;
+  animation-delay: var(--seasonal-fall-delay);
+  will-change: transform, opacity;
+}
+
+.seasonal-effect--fall[data-paused="true"] .seasonal-fall-particle {
+  animation-play-state: paused;
+}
+
+.seasonal-effect--fall[data-motion="reduced"] .seasonal-fall-particle {
+  animation: none;
+  opacity: 0.42;
+  transform: rotate(var(--seasonal-fall-rotation));
+}
+
+.seasonal-effect--fall[data-motion="reduced"] .seasonal-fall-particle:nth-of-type(n + 8) {
+  display: none;
+}
+
+.seasonal-effect--fall[data-motion="reduced"] .seasonal-fall-scene-art,
+.seasonal-effect--fall[data-motion="off"] .seasonal-fall-scene-art {
+  animation: none;
+}
+
+.seasonal-fall-navbar {
+  display: inline-block;
+  flex: none;
+  width: 34px;
+  margin-right: 3px;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(76, 45, 20, 0.2));
+  animation: seasonal-fall-navbar-sway 5.6s ease-in-out infinite;
+  transform-origin: 50% 12%;
+}
+
+.seasonal-fall-navbar[data-composition="early"] {
+  width: 42px;
+}
+
+.seasonal-fall-navbar[data-motion="reduced"],
+.seasonal-fall-navbar[data-motion="off"] {
+  animation: none;
+}
+
+.seasonal-fall-form {
+  position: absolute;
+  z-index: 3;
+  top: -36px;
+  right: -28px;
+  display: block;
+  width: 180px;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 5px 8px rgba(119, 71, 31, 0.12));
+}
+
+.seasonal-fall-form[data-composition="late"] {
+  top: -48px;
+  right: -34px;
+  width: 205px;
+  transform: rotate(1deg);
+}
+
+.seasonal-fall-card-corner {
+  position: absolute;
+  z-index: 4;
+  bottom: -25px;
+  left: -25px;
+  display: block;
+  width: 126px;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 4px 7px rgba(119, 71, 31, 0.1));
+}
+
+.seasonal-fall-card-corner[data-composition="late"] {
+  right: auto;
+  bottom: -25px;
+  left: -28px;
+  width: 135px;
+  transform: scaleX(-1);
+}
+
+@keyframes seasonal-fall-leaf-drift {
+  0% {
+    transform: translate3d(0, -8vh, 0) rotate(var(--seasonal-fall-rotation));
+    opacity: 0;
+  }
+
+  9% {
+    opacity: 0.72;
+  }
+
+  47% {
+    transform: translate3d(calc(var(--seasonal-fall-drift) * -0.45), 51vh, 0)
+      rotate(calc(var(--seasonal-fall-rotation) + 170deg));
+  }
+
+  90% {
+    opacity: 0.58;
+  }
+
+  100% {
+    transform: translate3d(var(--seasonal-fall-drift), 118vh, 0)
+      rotate(calc(var(--seasonal-fall-rotation) + 390deg));
+    opacity: 0;
+  }
+}
+
+@keyframes seasonal-fall-branch-breathe {
+  0%,
+  100% {
+    opacity: 0.78;
+  }
+
+  50% {
+    opacity: 0.94;
+  }
+}
+
+@keyframes seasonal-fall-navbar-sway {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
 @media (max-width: 1199px) {
+  .seasonal-fall-scene-art--wordmark {
+    right: 20px;
+    width: 190px;
+  }
+
   .seasonal-anniversary-art__title {
     right: 18px;
     width: 210px;
@@ -477,6 +743,75 @@
 }
 
 @media (max-width: 767px) {
+  .seasonal-fall-scene-art--hero {
+    top: 54px;
+    left: -92px;
+    width: 250px;
+    opacity: 0.62;
+  }
+
+  .seasonal-effect--fall[data-composition="late"] .seasonal-fall-scene-art--hero {
+    top: 54px;
+    left: -78px;
+    width: 260px;
+  }
+
+  .seasonal-fall-scene-art--wordmark {
+    top: 76px;
+    right: 4px;
+    width: 128px;
+    opacity: 0.58;
+  }
+
+  .seasonal-fall-scene-art--ground {
+    right: -70px;
+    bottom: -38px;
+    width: 220px;
+    opacity: 0.44;
+  }
+
+  .seasonal-effect--fall[data-composition="early"] .seasonal-fall-scene-art--ground {
+    left: -78px;
+  }
+
+  .seasonal-fall-wind {
+    display: none;
+  }
+
+  .seasonal-fall-particle:nth-of-type(n + 8) {
+    display: none;
+  }
+
+  .seasonal-fall-navbar {
+    display: none;
+  }
+
+  .seasonal-fall-form {
+    top: -25px;
+    right: -20px;
+    width: 125px;
+    opacity: 0.84;
+  }
+
+  .seasonal-fall-form[data-composition="late"] {
+    top: -30px;
+    right: -24px;
+    width: 142px;
+  }
+
+  .seasonal-fall-card-corner {
+    bottom: -15px;
+    left: -18px;
+    width: 91px;
+  }
+
+  .seasonal-fall-card-corner[data-composition="late"] {
+    right: auto;
+    bottom: -15px;
+    left: -20px;
+    width: 96px;
+  }
+
   .seasonal-anniversary-art__title {
     top: 92px;
     right: 10px;
@@ -545,6 +880,12 @@
   .seasonal-anniversary-art__halo,
   .seasonal-anniversary-art__stars,
   .seasonal-anniversary-card__star {
+    animation: none !important;
+  }
+
+  .seasonal-fall-particle,
+  .seasonal-fall-scene-art,
+  .seasonal-fall-navbar {
     animation: none !important;
   }
 }

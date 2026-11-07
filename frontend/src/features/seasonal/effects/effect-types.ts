@@ -6,6 +6,7 @@ import type {
 } from "../types";
 
 export interface SeasonalEffectProps {
+  themeId: string;
   motion: SeasonalMotionLevel;
   tokens: SeasonalTokens;
 }

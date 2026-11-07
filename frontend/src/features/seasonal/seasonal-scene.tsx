@@ -39,6 +39,7 @@ export function SeasonalScene() {
       {effects.map((Effect, index) => (
         <Effect
           key={`${manifest.id}-${index}`}
+          themeId={manifest.id}
           motion={motionLevel}
           tokens={manifest.tokens}
         />
